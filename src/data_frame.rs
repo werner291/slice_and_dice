@@ -41,7 +41,7 @@ where
     ///
     /// The top-level index selects the original DataFrame, and the lower-level index is from the original DataFrames.
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
-    pub fn stack<'a, J, E, It>(dfs: It) -> Result<DataFrame<'idx, CompoundIndex<J, I>, Vec<D::Output>, (usize, Idx)>, &'static str>
+    pub fn stack<'a, J, E, It>(dfs: It) -> Result<DataFrame<'idx, CompoundIndex<(J, I)>, Vec<D::Output>, (usize, Idx)>, &'static str>
     where
         I: Clone + 'idx,
         D: Clone,
@@ -63,7 +63,7 @@ where
         }
         // Build the compound index: outer is a numeric range, inner is the shared index
         let outer_index = crate::mapped_index::numeric_range_index::NumericRangeIndex::new(0, dfs.len() as i32);
-        let compound_index = CompoundIndex { a: outer_index, b: first_index.clone() };
+        let compound_index = CompoundIndex { indices: (outer_index, first_index.clone()) };
         // Flatten the data
         let mut data = Vec::new();
         for df in &dfs {
@@ -72,6 +72,33 @@ where
             }
         }
         Ok(DataFrame::new(compound_index, data))
+    }
+}
+
+impl<'idx, A, B, D, IdxA, IdxB> DataFrame<'idx, CompoundIndex<(A, B)>, D, (IdxA, IdxB)>
+where
+    A: MappedIndex<'idx, IdxA> + Clone,
+    B: MappedIndex<'idx, IdxB> + Clone,
+    D: Index<usize>,
+{
+    /// Aggregate over the second dimension (B) of a 2D compound index.
+    /// The function f receives an iterator over &D::Output for each fixed A.
+    pub fn aggregate_over_b<R, F>(&self, mut f: F) -> DataFrame<'idx, A, Vec<R>, IdxA>
+    where
+        F: FnMut(&mut dyn Iterator<Item = &D::Output>) -> R,
+    {
+        let a_index = self.index.indices.0.clone();
+        let b_index = self.index.indices.1.clone();
+        let mut result = Vec::with_capacity(a_index.size());
+        for a_val in a_index.iter() {
+            let mut values = (0..b_index.size()).map(|b_i| {
+                let b_val = b_index.from_flat_index(b_i);
+                let idx = (a_val, b_val);
+                &self.data[self.index.to_flat_index(idx)]
+            });
+            result.push(f(&mut values));
+        }
+        DataFrame::new(a_index, result)
     }
 }
 
@@ -129,8 +156,8 @@ mod tests {
         let df2 = DataFrame::new(index.clone(), vec![3, 4]);
         let stacked = DataFrame::stack([df1, df2]).expect("should stack");
         // Compound index: outer is NumericRangeIndex, inner is CategoricalIndex
-        assert_eq!(stacked.index.a, NumericRangeIndex::new(0, 2));
-        assert_eq!(stacked.index.b, index);
+        assert_eq!(format!("{:?}", stacked.index.indices.0), format!("{:?}", NumericRangeIndex::new(0, 2)));
+        assert_eq!(format!("{:?}", stacked.index.indices.1), format!("{:?}", index));
         assert_eq!(stacked.data, vec![1, 2, 3, 4]);
     }
 
@@ -142,5 +169,52 @@ mod tests {
         let df2 = DataFrame::new(index2, vec![3, 4]);
         let result = DataFrame::stack([df1, df2]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aggregate_over_b_sum() {
+        let a = CategoricalIndex::<&'static str, Tag>::new(vec!["x", "y"]);
+        let b = NumericRangeIndex::<Tag>::new(0, 3);
+        // Data: for (a, b):
+        // ("x", 0) = 1, ("x", 1) = 2, ("x", 2) = 3
+        // ("y", 0) = 4, ("y", 1) = 5, ("y", 2) = 6
+        let data = vec![1, 2, 3, 4, 5, 6];
+        let compound = CompoundIndex::new((a.clone(), b.clone()));
+        let df = DataFrame::new(compound, data);
+        let agg = df.aggregate_over_b(|it| it.copied().sum::<i32>());
+        assert_eq!(agg.data, vec![6, 15]); // 1+2+3, 4+5+6
+        assert_eq!(agg.index, a);
+    }
+
+    #[test]
+    fn test_aggregate_over_b_count() {
+        let a = CategoricalIndex::<&'static str, Tag>::new(vec!["x", "y"]);
+        let b = NumericRangeIndex::<Tag>::new(0, 2);
+        let data = vec![10, 20, 30, 40]; // ("x",0)=10, ("x",1)=20, ("y",0)=30, ("y",1)=40
+        let compound = CompoundIndex::new((a.clone(), b.clone()));
+        let df = DataFrame::new(compound, data);
+        let agg = df.aggregate_over_b(|it| it.count());
+        assert_eq!(agg.data, vec![2, 2]);
+        assert_eq!(agg.index, a);
+    }
+
+    #[test]
+    fn test_aggregate_over_b_min_max() {
+        let a = CategoricalIndex::<&'static str, Tag>::new(vec!["x", "y"]);
+        let b = NumericRangeIndex::<Tag>::new(0, 3);
+        // Data: for (a, b):
+        // ("x", 0) = 7, ("x", 1) = 2, ("x", 2) = 5
+        // ("y", 0) = 4, ("y", 1) = 9, ("y", 2) = 6
+        let data = vec![7, 2, 5, 4, 9, 6];
+        let compound = CompoundIndex::new((a.clone(), b.clone()));
+        let df = DataFrame::new(compound, data);
+        let agg = df.aggregate_over_b(|it| {
+            let mut it = it.copied();
+            let min = it.clone().min().unwrap();
+            let max = it.max().unwrap();
+            (min, max)
+        });
+        assert_eq!(agg.data, vec![(2, 7), (4, 9)]); // (min, max) for each a
+        assert_eq!(agg.index, a);
     }
 } 
