@@ -2,8 +2,10 @@ use std::marker::PhantomData;
 use super::MappedIndex;
 use std::ops::Index;
 
+/// A value in a numeric range index, representing a position in the range.
 #[derive(Debug, PartialEq, Eq)]
 pub struct NumericValue<'idx, Idx, T> {
+    /// The numeric index value.
     pub index: Idx,
     _phantom: PhantomData<&'idx T>,
 }
@@ -15,24 +17,31 @@ impl<'idx, Idx: Copy, T> Clone for NumericValue<'idx, Idx, T> {
     }
 }
 
+/// An index representing a numeric range from `start` to `end` (exclusive).
 pub struct NumericRangeIndex<T> {
+    /// The start of the range (inclusive).
     pub start: i32,
+    /// The end of the range (exclusive).
     pub end: i32,
     pub _phantom: PhantomData<T>,
 }
 
 impl<'idx, T: 'idx> MappedIndex<'idx, i32> for NumericRangeIndex<T> {
     type Value = NumericValue<'idx, i32, T>;
+    /// Returns an iterator over all numeric values in the range.
     fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
         (self.start..self.end)
             .map(move |i| NumericValue { index: i, _phantom: PhantomData })
     }
+    /// Returns the flat index for a numeric value (its position in the range).
     fn to_flat_index(&self, value: Self::Value) -> usize {
         value.index as usize
     }
+    /// Returns the numeric value for a given flat index.
     fn from_flat_index(&'idx self, index: usize) -> Self::Value {
         NumericValue { index: index as i32, _phantom: PhantomData }
     }
+    /// Returns the number of values in the numeric range index.
     fn size(&self) -> usize {
         (self.end - self.start) as usize
     }

@@ -1,7 +1,12 @@
 use super::MappedIndex;
 
+/// An index that combines two sub-indices into a compound, multi-dimensional index.
+///
+/// The flat index is computed as `a_idx * b.size() + b_idx`, flattening the two indices into a single dimension.
 pub struct CompoundIndex<A, B> {
+    /// The first (outer) sub-index.
     pub a: A,
+    /// The second (inner) sub-index.
     pub b: B,
 }
 
@@ -13,15 +18,18 @@ where
     B::Value: Copy + PartialEq + core::fmt::Debug,
 {
     type Value = (A::Value, B::Value);
+    /// Returns an iterator over all compound values in the index (not implemented).
     fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
         // Not implemented for simplicity
         std::iter::empty()
     }
+    /// Returns the flat index for a compound value, flattening the two sub-indices.
     fn to_flat_index(&self, value: Self::Value) -> usize {
         let a_idx = self.a.to_flat_index(value.0);
         let b_idx = self.b.to_flat_index(value.1);
         a_idx * self.b.size() + b_idx
     }
+    /// Returns the compound value for a given flat index, unflattening into sub-indices.
     fn from_flat_index(&'idx self, index: usize) -> Self::Value {
         let b_size = self.b.size();
         let a_idx = index / b_size;
@@ -30,6 +38,7 @@ where
         let b_val = self.b.from_flat_index(b_idx);
         (a_val, b_val)
     }
+    /// Returns the total number of values in the compound index.
     fn size(&self) -> usize {
         self.a.size() * self.b.size()
     }

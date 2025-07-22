@@ -1,9 +1,12 @@
 use std::marker::PhantomData;
 use super::MappedIndex;
 
+/// A value in a categorical index, referencing a value in the index and its position.
 #[derive(Debug, PartialEq, Eq)]
 pub struct CategoricalValue<'idx, T, Tag> {
+    /// Reference to the value in the index.
     pub value: &'idx T,
+    /// The position of the value in the index.
     index: usize,
     _phantom: PhantomData<&'idx Tag>,
 }
@@ -15,22 +18,28 @@ impl<'idx, T: Copy, Tag> Clone for CategoricalValue<'idx, T, Tag> {
     }
 }
 
+/// An index for categorical values, mapping indices to values of type `T`.
 pub struct CategoricalIndex<T, Tag> {
+    /// The values stored in the index.
     pub values: Vec<T>,
     pub _phantom: PhantomData<Tag>,
 }
 
 impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for CategoricalIndex<T, Tag> {
     type Value = CategoricalValue<'idx, T, Tag>;
+    /// Returns an iterator over all categorical values in the index.
     fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
         self.values.iter().enumerate().map(move |(index, v)| CategoricalValue { value: v, index, _phantom: PhantomData })
     }
+    /// Returns the flat index for a categorical value (its position).
     fn to_flat_index(&self, value: Self::Value) -> usize {
         value.index
     }
+    /// Returns the categorical value for a given flat index.
     fn from_flat_index(&'idx self, index: usize) -> Self::Value {
         CategoricalValue { value: &self.values[index], index, _phantom: PhantomData }
     }
+    /// Returns the number of values in the categorical index.
     fn size(&self) -> usize {
         self.values.len()
     }
@@ -53,6 +62,7 @@ impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for &CategoricalI
 }
 
 impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
+    /// Returns a reference to the value at the given categorical value.
     pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
         &self.values[cat_value.index]
     }
