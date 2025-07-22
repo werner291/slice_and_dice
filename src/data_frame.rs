@@ -23,6 +23,10 @@ where
     I: MappedIndex<'idx, Idx>,
     D: Index<usize>,
 {
+    /// Construct a new DataFrame from index and data.
+    pub fn new(index: I, data: D) -> Self {
+        Self { index, data, _phantom: PhantomData }
+    }
     /// Get a reference to the data for a given index value.
     pub fn get(&'idx self, value: I::Value) -> &D::Output {
         &self.data[self.index.to_flat_index(value)]
@@ -58,7 +62,7 @@ mod tests {
     fn test_dataframe_get_and_index() {
         let index = CategoricalIndex { values: vec!["a", "b", "c"], _phantom: PhantomData::<Tag> };
         let data = vec![10, 20, 30];
-        let df = DataFrame { index, data, _phantom: PhantomData };
+        let df = DataFrame::new(index, data);
         let val = df.index.from_flat_index(1);
         assert_eq!(df.get(val), &20);
         assert_eq!(df[val], 20);
@@ -69,7 +73,7 @@ mod tests {
     fn test_dataframe_round_trip() {
         let index = CategoricalIndex { values: vec!["x", "y", "z"], _phantom: PhantomData::<Tag> };
         let data = vec![100, 200, 300];
-        let df = DataFrame { index, data, _phantom: PhantomData };
+        let df = DataFrame::new(index, data);
         for flat in 0..df.index.size() {
             let val = df.index.from_flat_index(flat);
             let round = df.index.to_flat_index(val);
