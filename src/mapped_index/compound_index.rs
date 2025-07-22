@@ -57,3 +57,49 @@ where
         ia.size() * ib.size()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mapped_index::{
+        MappedIndex, categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex,
+    };
+
+    #[derive(Debug)]
+    struct CatTag;
+    #[derive(Debug)]
+    struct NumTag;
+
+    #[test]
+    fn test_compound_index_size_categorical_numeric() {
+        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<NumTag>::new(0, 3);
+        let ci = CompoundIndex::new((cat, num));
+        assert_eq!(ci.size(), 2 * 3);
+    }
+
+    #[test]
+    fn test_compound_index_iter_categorical_numeric() {
+        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<NumTag>::new(0, 2);
+        let ci = CompoundIndex::new((cat.clone(), num.clone()));
+        let items: Vec<_> = ci.iter().collect();
+        assert_eq!(items.len(), 4);
+        let cat_vals: Vec<_> = cat.iter().collect();
+        let num_vals: Vec<_> = num.iter().collect();
+        assert!(items.contains(&(cat_vals[0], num_vals[0])));
+        assert!(items.contains(&(cat_vals[1], num_vals[1])));
+    }
+
+    #[test]
+    fn test_flatten_unflatten_round_trip_categorical_numeric() {
+        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<NumTag>::new(0, 3);
+        let ci = CompoundIndex::new((cat, num));
+        for v in ci.iter() {
+            let flat = ci.flatten_index_value(v);
+            let round = ci.unflatten_index_value(flat);
+            assert_eq!(v, round);
+        }
+    }
+}
