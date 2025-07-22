@@ -2,7 +2,7 @@
 use crate::mapped_index::compound_index::CompoundIndex;
 use typenum::Unsigned;
 
-// Helper trait to project out the N-th element from a tuple
+// Helper trait to project out the N-th element from a tuple or CompoundIndex
 pub trait ProjectOut<N> {
     type Remaining;
     type Removed;
@@ -32,21 +32,17 @@ where
     }
 }
 
-// Helper trait to project out the N-th index from a CompoundIndex
-pub trait ProjectedIndex<N> {
-    type Remaining;
-    fn project_index(&self) -> Self::Remaining;
-}
-
-impl<N, Head, Tail> ProjectedIndex<N> for CompoundIndex<(Head, Tail)>
+// Implement ProjectOut for CompoundIndex, so projecting out a dimension returns a CompoundIndex with that sub-index removed
+impl<N, Indices> ProjectOut<N> for CompoundIndex<Indices>
 where
-    (Head, Tail): ProjectOut<N>,
-    <(Head, Tail) as ProjectOut<N>>::Remaining: Clone,
+    Indices: ProjectOut<N>,
+    <Indices as ProjectOut<N>>::Remaining: Clone,
 {
-    type Remaining = CompoundIndex<<(Head, Tail) as ProjectOut<N>>::Remaining>;
-    fn project_index(&self) -> Self::Remaining {
-        let (_, remaining) = self.indices.clone().project_out();
-        CompoundIndex::new(remaining)
+    type Remaining = CompoundIndex<<Indices as ProjectOut<N>>::Remaining>;
+    type Removed = <Indices as ProjectOut<N>>::Removed;
+    fn project_out(self) -> (Self::Removed, Self::Remaining) {
+        let (removed, remaining) = self.indices.project_out();
+        (removed, CompoundIndex::new(remaining))
     }
 }
 
@@ -81,23 +77,26 @@ mod tests {
     }
 
     #[test]
-    fn test_projected_index_first() {
+    fn test_project_out_compound_index_first() {
         let idx = CompoundIndex::new((10, (20, (30, ()))));
-        let projected = idx.project_index::<U0>();
+        let (removed, projected): (i32, CompoundIndex<(i32, (i32, ()))>) = ProjectOut::<U0>::project_out(idx);
+        assert_eq!(removed, 10);
         assert_eq!(projected.indices, (20, (30, ())))
     }
 
     #[test]
-    fn test_projected_index_middle() {
+    fn test_project_out_compound_index_middle() {
         let idx = CompoundIndex::new((10, (20, (30, (40, ())))));
-        let projected = idx.project_index::<U1>();
+        let (removed, projected): (i32, CompoundIndex<(i32, (i32, ()))>) = ProjectOut::<U1>::project_out(idx);
+        assert_eq!(removed, 20);
         assert_eq!(projected.indices, (10, (30, (40, ()))));
     }
 
     #[test]
-    fn test_projected_index_last() {
+    fn test_project_out_compound_index_last() {
         let idx = CompoundIndex::new((10, (20, (30, (40, ())))));
-        let projected = idx.project_index::<U2>();
+        let (removed, projected): (i32, CompoundIndex<(i32, (i32, ()))>) = ProjectOut::<U2>::project_out(idx);
+        assert_eq!(removed, 30);
         assert_eq!(projected.indices, (10, (20, (40, ()))));
     }
 } 
