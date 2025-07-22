@@ -3,13 +3,16 @@
 pub mod numeric_range_index;
 pub mod categorical_index;
 pub mod compound_index;
+pub mod sparse_numeric_index;
 
 /// A trait for types that provide a mapping between a flat numeric index and a value.
 ///
 /// This trait enables efficient, index-based access to values, and supports round-trip
 /// conversion between values and their flat indices. It is intended for use with index types
 /// such as categorical, numeric range, and compound indices.
-pub trait MappedIndex<'idx, Idx> {
+///
+/// All implementors must also implement Eq and PartialEq.
+pub trait MappedIndex<'idx, Idx>: Eq + PartialEq {
     /// The value type stored in the index.
     type Value: Copy;
     /// Returns an iterator over all values in the index.
