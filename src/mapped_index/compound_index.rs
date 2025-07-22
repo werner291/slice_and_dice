@@ -19,6 +19,9 @@ impl<Indices: PartialEq> PartialEq for CompoundIndex<Indices> {
 impl<Indices: Eq> Eq for CompoundIndex<Indices> {}
 
 impl<Indices> CompoundIndex<Indices> {
+    pub fn new(indices: Indices) -> Self {
+        Self { indices }
+    }
     pub fn to_flat_index<'idx, IdxTuple>(&self, value: <Self as MappedIndex<'idx, IdxTuple>>::Value) -> usize
     where
         Self: MappedIndex<'idx, IdxTuple>,
@@ -111,18 +114,18 @@ mod tests {
 
     #[test]
     fn test_compound_index_get() {
-        let cat = CategoricalIndex { values: vec![10, 20], _phantom: std::marker::PhantomData::<TagA> };
-        let num = NumericRangeIndex { start: 0, end: 2, _phantom: std::marker::PhantomData::<TagB> };
-        let compound = CompoundIndex { indices: (cat.clone(), num.clone()) };
+        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
+        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
+        let compound = CompoundIndex::new((cat.clone(), num.clone()));
         assert_eq!(compound.indices.0, cat);
         assert_eq!(compound.indices.1, num);
     }
 
     #[test]
     fn test_flat_index_round_trip_2d() {
-        let cat = CategoricalIndex { values: vec![10, 20], _phantom: std::marker::PhantomData::<TagA> };
-        let num = NumericRangeIndex { start: 0, end: 2, _phantom: std::marker::PhantomData::<TagB> };
-        let compound = CompoundIndex { indices: (cat.clone(), num.clone()) };
+        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
+        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
+        let compound = CompoundIndex::new((cat.clone(), num.clone()));
         for i in 0..cat.size() {
             for j in 0..num.size() {
                 let val = (cat.from_flat_index(i), num.from_flat_index(j));
@@ -136,19 +139,19 @@ mod tests {
 
     #[test]
     fn test_size_2d() {
-        let cat = CategoricalIndex { values: vec![10, 20, 30], _phantom: std::marker::PhantomData::<TagA> };
-        let num = NumericRangeIndex { start: 0, end: 4, _phantom: std::marker::PhantomData::<TagB> };
-        let compound = CompoundIndex { indices: (cat.clone(), num.clone()) };
+        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20, 30]);
+        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 4);
+        let compound = CompoundIndex::new((cat.clone(), num.clone()));
         assert_eq!(compound.size(), cat.size() * num.size());
     }
 
     #[test]
     fn test_flat_index_round_trip_3d() {
-        let cat = CategoricalIndex { values: vec![1, 2], _phantom: std::marker::PhantomData::<TagA> };
-        let num = NumericRangeIndex { start: 0, end: 2, _phantom: std::marker::PhantomData::<TagB> };
-        let cat2 = CategoricalIndex { values: vec![5, 6], _phantom: std::marker::PhantomData::<TagC> };
-        let inner = CompoundIndex { indices: (num.clone(), cat2.clone()) };
-        let compound = CompoundIndex { indices: (cat.clone(), inner) };
+        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2]);
+        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
+        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
+        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
+        let compound = CompoundIndex::new((cat.clone(), inner));
         for i in 0..cat.size() {
             for j in 0..num.size() {
                 for k in 0..cat2.size() {
@@ -164,11 +167,11 @@ mod tests {
 
     #[test]
     fn test_size_3d() {
-        let cat = CategoricalIndex { values: vec![1, 2, 3], _phantom: std::marker::PhantomData::<TagA> };
-        let num = NumericRangeIndex { start: 0, end: 2, _phantom: std::marker::PhantomData::<TagB> };
-        let cat2 = CategoricalIndex { values: vec![5, 6], _phantom: std::marker::PhantomData::<TagC> };
-        let inner = CompoundIndex { indices: (num.clone(), cat2.clone()) };
-        let compound = CompoundIndex { indices: (cat.clone(), inner) };
+        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2, 3]);
+        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
+        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
+        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
+        let compound = CompoundIndex::new((cat.clone(), inner));
         assert_eq!(compound.size(), cat.size() * num.size() * cat2.size());
     }
 } 
