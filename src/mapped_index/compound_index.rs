@@ -1,5 +1,5 @@
 use super::MappedIndex;
-use tuple_list::{TupleList, Tuple};
+use tuple_list::Tuple;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -102,8 +102,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::categorical_index::{CategoricalIndex, CategoricalValue};
-    use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    use crate::mapped_index::categorical_index::CategoricalIndex;
+    use crate::mapped_index::numeric_range_index::NumericRangeIndex;
     use crate::mapped_index::MappedIndex;
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct TagA;
