@@ -62,9 +62,20 @@ impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for &CategoricalI
 }
 
 impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
+    /// Create a new CategoricalIndex from a vector of values.
+    pub fn new(values: Vec<T>) -> Self {
+        Self { values, _phantom: PhantomData }
+    }
     /// Returns a reference to the value at the given categorical value.
     pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
         &self.values[cat_value.index]
+    }
+}
+
+impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
+    /// Create a new CategoricalValue from a reference and index.
+    pub fn new(value: &'idx T, index: usize) -> Self {
+        Self { value, index, _phantom: PhantomData }
     }
 }
 

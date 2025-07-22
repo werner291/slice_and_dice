@@ -55,12 +55,23 @@ impl<T: 'static> std::ops::Index<i32> for NumericRangeIndex<T> {
 }
 
 impl<T: 'static> NumericRangeIndex<T> {
+    /// Create a new NumericRangeIndex from start and end.
+    pub fn new(start: i32, end: i32) -> Self {
+        Self { start, end, _phantom: PhantomData }
+    }
     pub fn at(&self, index: i32) -> NumericValue<'static, i32, T> {
         if index >= self.start && index < self.end {
             NumericValue { index, _phantom: PhantomData }
         } else {
             panic!("Index {:?} out of bounds ({:?}..{:?})", index, self.start, self.end);
         }
+    }
+}
+
+impl<'idx, Idx, T> NumericValue<'idx, Idx, T> {
+    /// Create a new NumericValue from an index.
+    pub fn new(index: Idx) -> Self {
+        Self { index, _phantom: PhantomData }
     }
 }
 
