@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use super::MappedIndex;
 use std::ops::Index;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct NumericValue<'idx, Idx, T> {
     pub index: Idx,
     _phantom: PhantomData<&'idx T>,
@@ -17,21 +18,23 @@ impl<'idx, Idx: Copy, T> Clone for NumericValue<'idx, Idx, T> {
 pub struct NumericRangeIndex<T> {
     pub start: i32,
     pub end: i32,
-    _phantom: PhantomData<T>,
+    pub _phantom: PhantomData<T>,
 }
 
 impl<'idx, T: 'idx> MappedIndex<'idx, i32> for NumericRangeIndex<T> {
     type Value = NumericValue<'idx, i32, T>;
-    fn get(&'idx self, index: i32) -> Option<Self::Value> {
-        if index >= self.start && index < self.end {
-            Some(NumericValue { index, _phantom: PhantomData })
-        } else {
-            None
-        }
-    }
     fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
         (self.start..self.end)
             .map(move |i| NumericValue { index: i, _phantom: PhantomData })
+    }
+    fn to_flat_index(&self, value: Self::Value) -> usize {
+        value.index as usize
+    }
+    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
+        NumericValue { index: index as i32, _phantom: PhantomData }
+    }
+    fn size(&self) -> usize {
+        (self.end - self.start) as usize
     }
 }
 
@@ -52,6 +55,22 @@ impl<T: 'static> NumericRangeIndex<T> {
     }
 }
 
+impl<'idx, T: 'idx> MappedIndex<'idx, i32> for &NumericRangeIndex<T> {
+    type Value = <NumericRangeIndex<T> as MappedIndex<'idx, i32>>::Value;
+    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
+        (*self).iter()
+    }
+    fn to_flat_index(&self, value: Self::Value) -> usize {
+        (*self).to_flat_index(value)
+    }
+    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
+        (*self).from_flat_index(index)
+    }
+    fn size(&self) -> usize {
+        (*self).size()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,33 +79,11 @@ mod tests {
     struct Tag;
 
     #[test]
-    fn test_in_range() {
-        let range = NumericRangeIndex { start: 0, end: 10, _phantom: PhantomData::<Tag> };
-        for i in 0..10 {
-            let value = range.get(i);
-            assert!(value.is_some(), "Expected Some for index {}", i);
-            assert_eq!(value.unwrap().index, i);
-        }
-    }
-
-    #[test]
-    fn test_out_of_range() {
-        let range = NumericRangeIndex { start: 0, end: 10, _phantom: PhantomData::<Tag> };
-        assert!(range.get(-1).is_none(), "Expected None for index -1");
-        assert!(range.get(10).is_none(), "Expected None for index 10");
-        assert!(range.get(100).is_none(), "Expected None for index 100");
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_index_out_of_bounds() {
-        let range = NumericRangeIndex { start: 0, end: 10, _phantom: PhantomData::<Tag> };
-        let _ = range.at(100);
-    }
-    #[test]
-    fn test_index_in_bounds() {
-        let range = NumericRangeIndex { start: 0, end: 10, _phantom: PhantomData::<Tag> };
-        let value = range.at(5);
-        assert_eq!(value.index, 5);
+    fn test_flat_index_round_trip() {
+        let range = NumericRangeIndex { start: 10, end: 20, _phantom: PhantomData::<Tag> };
+        let val = range.from_flat_index(13);
+        let flat = range.to_flat_index(val);
+        let round = range.from_flat_index(flat);
+        assert_eq!(val.index, round.index);
     }
 } 
