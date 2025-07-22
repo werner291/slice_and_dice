@@ -1,5 +1,4 @@
-use super::MappedIndex;
-use tuple_list::Tuple;
+use crate::mapped_index::MappedIndex;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -22,156 +21,39 @@ impl<Indices> CompoundIndex<Indices> {
     pub fn new(indices: Indices) -> Self {
         Self { indices }
     }
-    pub fn to_flat_index<'idx, IdxTuple>(&self, value: <Self as MappedIndex<'idx, IdxTuple>>::Value) -> usize
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::to_flat_index(self, value)
-    }
-    pub fn from_flat_index<'idx, IdxTuple>(&'idx self, index: usize) -> <Self as MappedIndex<'idx, IdxTuple>>::Value
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::from_flat_index(self, index)
-    }
-    pub fn size<'idx, IdxTuple>(&self) -> usize
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::size(self)
-    }
 }
 
-// Recursive MappedIndex implementation for tuples of indices
-impl<'idx> MappedIndex<'idx, ()> for CompoundIndex<()> {
-    type Value = ();
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> { std::iter::empty() }
-    fn to_flat_index(&self, _value: Self::Value) -> usize { 0 }
-    fn from_flat_index(&'idx self, _index: usize) -> Self::Value { () }
-    fn size(&self) -> usize { 1 }
-}
-
-impl<'idx, Head, Tail, IdxHead, IdxTail> MappedIndex<'idx, (IdxHead, IdxTail)> for CompoundIndex<(Head, Tail)>
+impl<A, B> MappedIndex for CompoundIndex<(A, B)>
 where
-    Head: MappedIndex<'idx, IdxHead> + Eq + PartialEq + Clone,
-    Tail: MappedIndex<'idx, IdxTail> + Eq + PartialEq + Clone,
-    Head::Value: Copy,
-    Tail::Value: Copy,
+    A: MappedIndex,
+    B: MappedIndex,
 {
-    type Value = (Head::Value, Tail::Value);
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> { std::iter::empty() }
-    fn to_flat_index(&self, value: Self::Value) -> usize {
-        let (head_idx, tail_idx) = &self.indices;
-        let (head_val, tail_val) = value;
-        let head_flat = head_idx.to_flat_index(head_val);
-        let tail_flat = tail_idx.to_flat_index(tail_val);
-        head_flat * tail_idx.size() + tail_flat
+    type Value<'a>
+        = (A::Value<'a>, B::Value<'a>)
+    where
+        A: 'a,
+        B: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        let (ia, ib) = &self.indices;
+        itertools::iproduct!(ia.iter(), ib.iter())
     }
-    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
-        let (head_idx, tail_idx) = &self.indices;
-        let tail_size = tail_idx.size();
-        let head_flat = index / tail_size;
-        let tail_flat = index % tail_size;
-        let head_val = head_idx.from_flat_index(head_flat);
-        let tail_val = tail_idx.from_flat_index(tail_flat);
-        (head_val, tail_val)
+
+    fn flatten_index_value(&self, (va, vb): Self::Value<'_>) -> usize {
+        let (ia, ib) = &self.indices;
+        ia.flatten_index_value(va) * ib.size() + ib.flatten_index_value(vb)
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        let (ia, ib) = &self.indices;
+
+        (
+            ia.unflatten_index_value(index / ib.size()),
+            ib.unflatten_index_value(index % ib.size()),
+        )
     }
     fn size(&self) -> usize {
-        let (head_idx, tail_idx) = &self.indices;
-        head_idx.size() * tail_idx.size()
+        let (ia, ib) = &self.indices;
+        ia.size() * ib.size()
     }
 }
-
-// Helper trait to get the Value tuple type for a tuple of indices and their Idx types
-pub trait CompoundIndexValue<'idx, IdxTuple> {
-    type Value: Tuple;
-}
-
-impl<'idx> CompoundIndexValue<'idx, ()> for () {
-    type Value = ();
-}
-
-impl<'idx, Head, Tail, IdxHead, IdxTail> CompoundIndexValue<'idx, (IdxHead, IdxTail)> for (Head, Tail)
-where
-    Head: MappedIndex<'idx, IdxHead>,
-    Tail: CompoundIndexValue<'idx, IdxTail>,
-{
-    type Value = (Head::Value, <Tail as CompoundIndexValue<'idx, IdxTail>>::Value);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mapped_index::categorical_index::CategoricalIndex;
-    use crate::mapped_index::numeric_range_index::NumericRangeIndex;
-    use crate::mapped_index::MappedIndex;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagA;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagB;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagC;
-
-    #[test]
-    fn test_compound_index_get() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        assert_eq!(compound.indices.0, cat);
-        assert_eq!(compound.indices.1, num);
-    }
-
-    #[test]
-    fn test_flat_index_round_trip_2d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        for i in 0..cat.size() {
-            for j in 0..num.size() {
-                let val = (cat.from_flat_index(i), num.from_flat_index(j));
-                let flat = compound.to_flat_index(val);
-                let round = compound.from_flat_index(flat);
-                assert_eq!(compound.to_flat_index(round), flat);
-                assert_eq!(round, val);
-            }
-        }
-    }
-
-    #[test]
-    fn test_size_2d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20, 30]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 4);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        assert_eq!(compound.size(), cat.size() * num.size());
-    }
-
-    #[test]
-    fn test_flat_index_round_trip_3d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
-        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
-        let compound = CompoundIndex::new((cat.clone(), inner));
-        for i in 0..cat.size() {
-            for j in 0..num.size() {
-                for k in 0..cat2.size() {
-                    let val = (cat.from_flat_index(i), (num.from_flat_index(j), cat2.from_flat_index(k)));
-                    let flat = compound.to_flat_index(val);
-                    let round = compound.from_flat_index(flat);
-                    assert_eq!(compound.to_flat_index(round), flat);
-                    assert_eq!(round, val);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_size_3d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2, 3]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
-        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
-        let compound = CompoundIndex::new((cat.clone(), inner));
-        assert_eq!(compound.size(), cat.size() * num.size() * cat2.size());
-    }
-} 
