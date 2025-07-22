@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 use super::MappedIndex;
-use std::ops::Index;
 
 /// A value in a numeric range index, representing a position in the range.
 #[derive(Debug, PartialEq, Eq)]
@@ -18,6 +17,7 @@ impl<'idx, Idx: Copy, T> Clone for NumericValue<'idx, Idx, T> {
 }
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
+#[derive(Debug, Clone)]
 pub struct NumericRangeIndex<T> {
     /// The start of the range (inclusive).
     pub start: i32,
@@ -25,6 +25,13 @@ pub struct NumericRangeIndex<T> {
     pub end: i32,
     pub _phantom: PhantomData<T>,
 }
+
+impl<T> PartialEq for NumericRangeIndex<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start && self.end == other.end
+    }
+}
+impl<T> Eq for NumericRangeIndex<T> {}
 
 impl<'idx, T: 'idx> MappedIndex<'idx, i32> for NumericRangeIndex<T> {
     type Value = NumericValue<'idx, i32, T>;
@@ -49,12 +56,12 @@ impl<'idx, T: 'idx> MappedIndex<'idx, i32> for NumericRangeIndex<T> {
 
 impl<T: 'static> std::ops::Index<i32> for NumericRangeIndex<T> {
     type Output = NumericValue<'static, i32, T>;
-    fn index(&self, index: i32) -> &Self::Output {
+    fn index(&self, _index: i32) -> &Self::Output {
         panic!("Cannot return a reference to a value by index; use get() or at() instead.");
     }
 }
 
-impl<T: 'static> NumericRangeIndex<T> {
+impl<T> NumericRangeIndex<T> {
     /// Create a new NumericRangeIndex from start and end.
     pub fn new(start: i32, end: i32) -> Self {
         Self { start, end, _phantom: PhantomData }
@@ -96,14 +103,12 @@ mod tests {
     use super::*;
     use crate::mapped_index::MappedIndex;
 
-    struct Tag;
-
     #[test]
     fn test_flat_index_round_trip() {
-        let range = NumericRangeIndex { start: 10, end: 20, _phantom: PhantomData::<Tag> };
-        let val = range.from_flat_index(13);
-        let flat = range.to_flat_index(val);
-        let round = range.from_flat_index(flat);
+        let _range: NumericRangeIndex<i32> = NumericRangeIndex::new(10, 20);
+        let val = NumericValue::new(13);
+        let flat = _range.to_flat_index(val);
+        let round = _range.from_flat_index(flat);
         assert_eq!(val.index, round.index);
     }
 } 
