@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use crate::mapped_index::MappedIndex;
 use std::marker::PhantomData;
 use std::ops::Index;
 

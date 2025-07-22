@@ -3,7 +3,6 @@
 pub mod numeric_range_index;
 pub mod categorical_index;
 pub mod compound_index;
-pub mod data_frame;
 
 /// A trait for types that provide a mapping between a flat numeric index and a value.
 ///
