@@ -105,31 +105,51 @@ macro_rules! impl_index_ref_tuple {
 
 impl_index_ref_tuple!((A, B, C));
 
-impl<Indices> MappedIndex for CompoundIndex<Indices>
+pub trait IndexTuple: TupleAsRefs {
+    type RefTuple<'a>: IndexRefTuple<'a>
+    where
+        Self: 'a;
+    fn as_ref_tuple<'a>(&'a self) -> Self::RefTuple<'a>;
+}
+
+impl<Indices> IndexTuple for Indices
 where
     Indices: TupleAsRefs,
     for<'a> <Indices as TupleAsRefs>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
 {
+    type RefTuple<'a>
+        = <Indices as TupleAsRefs>::AsTupleOfRefs<'a>
+    where
+        Self: 'a;
+
+    fn as_ref_tuple(&self) -> Self::RefTuple<'_> {
+        self.as_tuple_of_refs()
+    }
+}
+
+impl<Indices> MappedIndex for CompoundIndex<Indices>
+where
+    Indices: IndexTuple,
+{
     type Value<'a>
-        = <<Indices as TupleAsRefs>::AsTupleOfRefs<'a> as IndexRefTuple<'a>>::Value
+        = <Indices::RefTuple<'a> as IndexRefTuple<'a>>::Value
     where
         Indices: 'a;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        self.indices.as_tuple_of_refs().iter()
+        self.indices.as_ref_tuple().iter()
     }
 
     fn flatten_index_value<'a>(&'a self, v: Self::Value<'a>) -> usize {
-        let refs = self.indices.as_tuple_of_refs();
-        refs.flatten_index_value(v)
+        self.indices.as_ref_tuple().flatten_index_value(v)
     }
 
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
-        self.indices.as_tuple_of_refs().unflatten_index_value(index)
+        self.indices.as_ref_tuple().unflatten_index_value(index)
     }
 
     fn size(&self) -> usize {
-        self.indices.as_tuple_of_refs().size()
+        self.indices.as_ref_tuple().size()
     }
 }
 
