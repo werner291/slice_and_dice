@@ -1,84 +1,84 @@
 #![allow(non_snake_case)]
 
 // Trait for tuples with a first element.
-pub trait TupleHead {
-    type Head;
-    type Tail;
+pub trait TupleFirstElement {
+    type First;
+    type Rest;
 
-    fn split_head(self) -> (Self::Head, Self::Tail);
+    fn split_first(self) -> (Self::First, Self::Rest);
 }
 
-macro_rules! impl_tuple_head {
-    ($head:ident, $($tail:ident),*) => {
-        impl<$head, $($tail),*> TupleHead for ($head, $($tail),*) {
-            type Head = $head;
-            type Tail = ($($tail),*);
+macro_rules! impl_tuple_first_element {
+    ($first:ident, $($rest:ident),*) => {
+        impl<$first, $($rest),*> TupleFirstElement for ($first, $($rest),*) {
+            type First = $first;
+            type Rest = ($($rest),*);
 
-            fn split_head(self) -> (Self::Head, Self::Tail) {
-                let ($head, $($tail),*) = self;
-                ($head, ($($tail),*))
+            fn split_first(self) -> (Self::First, Self::Rest) {
+                let ($first, $($rest),*) = self;
+                ($first, ($($rest),*))
             }
         }
     };
 }
 
-impl<A> TupleHead for (A,) {
-    type Head = A;
-    type Tail = ();
+impl<A> TupleFirstElement for (A,) {
+    type First = A;
+    type Rest = ();
 
-    fn split_head(self) -> (Self::Head, Self::Tail) {
+    fn split_first(self) -> (Self::First, Self::Rest) {
         (self.0, ())
     }
 }
 
-impl_tuple_head!(A, B);
-impl_tuple_head!(A, B, C);
-impl_tuple_head!(A, B, C, D);
-impl_tuple_head!(A, B, C, D, E);
-impl_tuple_head!(A, B, C, D, E, F);
-impl_tuple_head!(A, B, C, D, E, F, G);
-impl_tuple_head!(A, B, C, D, E, F, G, H);
-impl_tuple_head!(A, B, C, D, E, F, G, H, J);
+impl_tuple_first_element!(A, B);
+impl_tuple_first_element!(A, B, C);
+impl_tuple_first_element!(A, B, C, D);
+impl_tuple_first_element!(A, B, C, D, E);
+impl_tuple_first_element!(A, B, C, D, E, F);
+impl_tuple_first_element!(A, B, C, D, E, F, G);
+impl_tuple_first_element!(A, B, C, D, E, F, G, H);
+impl_tuple_first_element!(A, B, C, D, E, F, G, H, J);
 
 // Trait for constructing one greater-size tuple
-pub trait TupleCons {
-    type TupleCons<A>;
+pub trait TuplePrepend {
+    type PrependedTuple<A>;
 
-    fn prepend<A>(self, head: A) -> Self::TupleCons<A>;
+    fn prepend<A>(self, head: A) -> Self::PrependedTuple<A>;
 }
 
-macro_rules! impl_tuple_cons {
-    ($($tail:ident),*) => {
-        impl<$($tail),*> TupleCons for ($($tail),*) {
-            type TupleCons<Head> = (Head, $($tail),*);
+macro_rules! impl_tuple_prepend {
+    ($($rest:ident),*) => {
+        impl<$($rest),*> TuplePrepend for ($($rest),*) {
+            type PrependedTuple<Head> = (Head, $($rest),*);
 
-            fn prepend<Head>(self, head: Head) -> Self::TupleCons<Head> {
-                let ($($tail),*) = self;
-                (head, $($tail),*)
+            fn prepend<Head>(self, head: Head) -> Self::PrependedTuple<Head> {
+                let ($($rest),*) = self;
+                (head, $($rest),*)
             }
         }
     };
 }
 
-impl_tuple_cons!();
-impl<A> TupleCons for (A,) {
-    type TupleCons<Head> = (Head, A);
+impl_tuple_prepend!();
+impl<A> TuplePrepend for (A,) {
+    type PrependedTuple<Head> = (Head, A);
 
-    fn prepend<Head>(self, head: Head) -> Self::TupleCons<Head> {
+    fn prepend<Head>(self, head: Head) -> Self::PrependedTuple<Head> {
         let (A,) = self;
         (head, A)
     }
 }
-impl_tuple_cons!(A, B);
-impl_tuple_cons!(A, B, C);
-impl_tuple_cons!(A, B, C, D);
-impl_tuple_cons!(A, B, C, D, E);
-impl_tuple_cons!(A, B, C, D, E, F);
-impl_tuple_cons!(A, B, C, D, E, F, G);
-impl_tuple_cons!(A, B, C, D, E, F, G, H);
-impl_tuple_cons!(A, B, C, D, E, F, G, H, J);
+impl_tuple_prepend!(A, B);
+impl_tuple_prepend!(A, B, C);
+impl_tuple_prepend!(A, B, C, D);
+impl_tuple_prepend!(A, B, C, D, E);
+impl_tuple_prepend!(A, B, C, D, E, F);
+impl_tuple_prepend!(A, B, C, D, E, F, G);
+impl_tuple_prepend!(A, B, C, D, E, F, G, H);
+impl_tuple_prepend!(A, B, C, D, E, F, G, H, J);
 
-pub trait TupleAsRefs {
+pub trait TupleAsRefsTuple {
     type AsTupleOfRefs<'a>
     where
         Self: 'a;
@@ -86,7 +86,7 @@ pub trait TupleAsRefs {
     fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_>;
 }
 
-impl<'a> TupleAsRefs for () {
+impl<'a> TupleAsRefsTuple for () {
     type AsTupleOfRefs<'b>
         = ()
     where
@@ -97,7 +97,7 @@ impl<'a> TupleAsRefs for () {
     }
 }
 
-impl<A> TupleAsRefs for (A,) {
+impl<A> TupleAsRefsTuple for (A,) {
     type AsTupleOfRefs<'a>
         = (&'a A,)
     where
@@ -108,10 +108,10 @@ impl<A> TupleAsRefs for (A,) {
     }
 }
 
-macro_rules! impl_tuple_as_refs {
+macro_rules! impl_tuple_as_refs_tuple {
     ($(($($name:ident),*)),*) => {
         $(
-            impl<$($name),*> TupleAsRefs for ($($name),*) {
+            impl<$($name),*> TupleAsRefsTuple for ($($name),*) {
                 type AsTupleOfRefs<'a> = ($(&'a $name),*) where Self: 'a;
 
                 fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> {
@@ -123,7 +123,7 @@ macro_rules! impl_tuple_as_refs {
     };
 }
 
-impl_tuple_as_refs!(
+impl_tuple_as_refs_tuple!(
     (A, B),
     (A, B, C),
     (A, B, C, D),
@@ -139,20 +139,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tuple_head() {
+    fn test_tuple_first_element() {
         let t2 = (1, "a");
-        let (h, tail) = t2.split_head();
+        let (h, tail) = t2.split_first();
         assert_eq!(h, 1);
         assert_eq!(tail, "a");
 
         let t3 = (1, 2, 3);
-        let (h, tail) = t3.split_head();
+        let (h, tail) = t3.split_first();
         assert_eq!(h, 1);
         assert_eq!(tail, (2, 3));
     }
 
     #[test]
-    fn test_tuple_cons() {
+    fn test_tuple_prepend() {
         let t1 = ("b",);
         let t2 = t1.prepend(1);
         assert_eq!(t2, (1, "b"));
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple_as_refs() {
+    fn test_tuple_as_refs_tuple() {
         let t1 = (42,);
         let refs = t1.as_tuple_of_refs();
         assert_eq!(*refs.0, 42);

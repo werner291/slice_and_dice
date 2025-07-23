@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::tuple_utils::{TupleAsRefs, TupleCons, TupleHead};
+use crate::mapped_index::tuple_utils::{TupleAsRefsTuple, TupleFirstElement, TuplePrepend};
 use itertools::iproduct;
 use tuple_list::AsTupleOfRefs;
 
@@ -70,23 +70,23 @@ impl<'a, A: MappedIndex + 'a, B: MappedIndex + 'a> IndexRefTuple<'a> for (&'a A,
 macro_rules! impl_index_ref_tuple {
     (($head:ident, $($tail:ident),*)) => {
         impl<'a, $head: MappedIndex, $($tail: MappedIndex),*> IndexRefTuple<'a> for (&'a $head, $(&'a $tail),*) {
-            type Value = <($($tail::Value<'a> ),*) as TupleCons>::TupleCons<$head::Value<'a>>;
+            type Value = <($($tail::Value<'a> ),*) as TuplePrepend>::PrependedTuple<$head::Value<'a>>;
 
             fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-                let (h, t) = TupleHead::split_head(self);
+                let (h, t) = TupleFirstElement::split_first(self);
                 iproduct!(h.iter(), t.iter())
                     .map(|(hv, tv)| tv.prepend(hv))
             }
 
             fn flatten_index_value(self, v: Self::Value) -> usize {
-                let (h, t) = self.split_head();
-                let h_flat = h.flatten_index_value(v.split_head().0);
-                let t_flat = t.flatten_index_value(v.split_head().1);
+                let (h, t) = self.split_first();
+                let h_flat = h.flatten_index_value(v.split_first().0);
+                let t_flat = t.flatten_index_value(v.split_first().1);
                 h_flat * t.size() + t_flat
             }
 
             fn unflatten_index_value(self, index: usize) -> Self::Value {
-                let (h, t) = self.split_head();
+                let (h, t) = self.split_first();
                 let h_size = t.size();
                 let h_index = index / h_size;
                 let t_index = index % h_size;
@@ -96,7 +96,7 @@ macro_rules! impl_index_ref_tuple {
             }
 
             fn size(self) -> usize {
-                let (h, t) = self.split_head();
+                let (h, t) = self.split_first();
                 h.size() * t.size()
             }
         }
@@ -108,11 +108,11 @@ impl_index_ref_tuple!((A, B, C));
 
 impl<Indices> MappedIndex for CompoundIndex<Indices>
 where
-    Indices: TupleAsRefs,
-    for<'a> <Indices as TupleAsRefs>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
+    Indices: TupleAsRefsTuple,
+    for<'a> <Indices as TupleAsRefsTuple>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
 {
     type Value<'a>
-        = <<Indices as TupleAsRefs>::AsTupleOfRefs<'a> as IndexRefTuple<'a>>::Value
+        = <<Indices as TupleAsRefsTuple>::AsTupleOfRefs<'a> as IndexRefTuple<'a>>::Value
     where
         Indices: 'a;
 
