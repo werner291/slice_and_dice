@@ -64,13 +64,13 @@ impl<T: 'static> MappedIndex for NumericRangeIndex<T> {
 
     /// Returns the flat index for a numeric value (its position in the range).
     fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
-        value.index as usize
+        (value.index - self.start) as usize
     }
 
     /// Returns the numeric value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         NumericValue {
-            index: index as i32,
+            index: index as i32 + self.start,
             _phantom: PhantomData,
         }
     }
