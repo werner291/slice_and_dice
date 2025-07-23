@@ -69,8 +69,6 @@ impl<A> TupleCons for (A,) {
         (head, A)
     }
 }
-
-impl_tuple_cons!(A);
 impl_tuple_cons!(A, B);
 impl_tuple_cons!(A, B, C);
 impl_tuple_cons!(A, B, C, D);
