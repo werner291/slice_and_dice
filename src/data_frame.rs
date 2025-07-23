@@ -110,7 +110,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::compound_index::CompoundIndex;
     use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
 
     #[derive(Debug)]
