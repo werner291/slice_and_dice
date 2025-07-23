@@ -29,9 +29,10 @@ where
     }
 
     /// Get a reference to the data for a given index value.
-    pub fn get(&self, value: I::Value<'_>) -> &D::Output {
+    pub fn get<'a>(&'a self, value: I::Value<'a>) -> &'a D::Output {
         &self.data[self.index.flatten_index_value(value)]
     }
+
     /// Get a reference to the data for a given flat index.
     pub fn get_flat(&self, flat_index: usize) -> &D::Output {
         &self.data[flat_index]
@@ -41,11 +42,11 @@ where
     ///
     /// The top-level index selects the original DataFrame, and the lower-level index is from the original DataFrames.
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
-    pub fn stack<'a, J, E, It, StackTag: 'static>(
+    pub fn stack<StackTag: 'static>(
         dfs: impl IntoIterator<Item = DataFrame<I, D>>,
     ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<StackTag>, I)>, Vec<D::Output>>>
     where
-        I: Clone + PartialEq,
+        I: Clone + PartialEq + 'static, // TODO: Can we do with a looser bound than 'static ?
         D::Output: Clone,
     {
         let dfs: Vec<DataFrame<I, D>> = dfs.into_iter().collect();
@@ -77,31 +78,80 @@ where
         Some(DataFrame::new(compound_index, data))
     }
 }
+//
+// impl<'idx, A, B, D> DataFrame<CompoundIndex<(A, B)>, D>
+// where
+//     A: MappedIndex + Clone,
+//     B: MappedIndex + Clone,
+//     D: Index<usize>,
+// {
+//     /// Aggregate over the dimension specified by typenum (U0 for first, U1 for second).
+//     pub fn aggregate_over_a<R, F, N>(&self, mut f: F) -> DataFrame<B, Vec<R>>
+//     where
+//         F: FnMut(&mut dyn Iterator<Item = &D::Output>) -> R,
+//         N: typenum::Unsigned,
+//     {
+//         // Aggregate over A (first dimension)
+//         let a_index = self.index.indices.0.clone();
+//         let b_index = self.index.indices.1.clone();
+//         let mut result = Vec::with_capacity(b_index.size());
+//         for b_val in b_index.iter() {
+//             let mut values = (0..a_index.size()).map(|a_i| {
+//                 let a_val = a_index.unflatten_index_value(a_i);
+//                 let idx = (a_val, b_val);
+//                 &self.data[self.index.flatten_index_value(idx)]
+//             });
+//             result.push(f(&mut values));
+//         }
+//         DataFrame::new(b_index, result)
+//     }
+// }
 
-impl<'idx, A, B, D> DataFrame<CompoundIndex<(A, B)>, D>
-where
-    A: MappedIndex + Clone,
-    B: MappedIndex + Clone,
-    D: Index<usize>,
-{
-    /// Aggregate over the dimension specified by typenum (U0 for first, U1 for second).
-    pub fn aggregate_over_a<R, F, N>(&self, mut f: F) -> DataFrame<B, Vec<R>>
-    where
-        F: FnMut(&mut dyn Iterator<Item = &D::Output>) -> R,
-        N: typenum::Unsigned,
-    {
-        // Aggregate over A (first dimension)
-        let a_index = self.index.indices.0.clone();
-        let b_index = self.index.indices.1.clone();
-        let mut result = Vec::with_capacity(b_index.size());
-        for b_val in b_index.iter() {
-            let mut values = (0..a_index.size()).map(|a_i| {
-                let a_val = a_index.unflatten_index_value(a_i);
-                let idx = (a_val, b_val);
-                &self.data[self.index.flatten_index_value(idx)]
-            });
-            result.push(f(&mut values));
-        }
-        DataFrame::new(b_index, result)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mapped_index::compound_index::CompoundIndex;
+    use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+
+    #[derive(Debug)]
+    struct Tag;
+
+    #[test]
+    fn test_new() {
+        let index = NumericRangeIndex::<Tag>::new(0, 3);
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index.clone(), data.clone());
+        assert_eq!(df.index, index);
+        assert_eq!(df.data, data);
+    }
+
+    #[test]
+    fn test_get() {
+        let index = NumericRangeIndex::<Tag>::new(0, 3);
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index, data);
+        assert_eq!(*df.get(NumericValue::new(1)), 20);
+    }
+
+    #[test]
+    fn test_get_flat() {
+        let index = NumericRangeIndex::<Tag>::new(0, 3);
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index, data);
+        assert_eq!(*df.get_flat(2), 30);
+    }
+
+    struct StackTag;
+
+    #[test]
+    fn test_stack() {
+        let index = NumericRangeIndex::<Tag>::new(0, 2);
+        let df1 = DataFrame::new(index.clone(), vec![10, 20]);
+        let df2 = DataFrame::new(index.clone(), vec![30, 40]);
+        let stacked = DataFrame::stack::<StackTag>(vec![df1, df2]).unwrap();
+
+        assert_eq!(stacked.index.indices.0.size(), 2); // Outer index size
+        assert_eq!(stacked.index.indices.1, index); // Inner index
+        assert_eq!(stacked.data, vec![10, 20, 30, 40]); // Flattened data
     }
 }
