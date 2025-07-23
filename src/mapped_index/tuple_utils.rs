@@ -158,7 +158,7 @@ impl_tuple_append!(A, B, C, D, E, F, G);
 impl_tuple_append!(A, B, C, D, E, F, G, H);
 impl_tuple_append!(A, B, C, D, E, F, G, H, I);
 
-pub trait TupleAsRefsTuple {
+pub trait TupleAsRefs {
     type AsTupleOfRefs<'a>
     where
         Self: 'a;
@@ -166,7 +166,7 @@ pub trait TupleAsRefsTuple {
     fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_>;
 }
 
-impl<'a> TupleAsRefsTuple for () {
+impl<'a> TupleAsRefs for () {
     type AsTupleOfRefs<'b>
         = ()
     where
@@ -177,7 +177,7 @@ impl<'a> TupleAsRefsTuple for () {
     }
 }
 
-impl<A> TupleAsRefsTuple for (A,) {
+impl<A> TupleAsRefs for (A,) {
     type AsTupleOfRefs<'a>
         = (&'a A,)
     where
@@ -191,7 +191,7 @@ impl<A> TupleAsRefsTuple for (A,) {
 macro_rules! impl_tuple_as_refs_tuple {
     ($(($($name:ident),*)),*) => {
         $(
-            impl<$($name),*> TupleAsRefsTuple for ($($name),*) {
+            impl<$($name),*> TupleAsRefs for ($($name),*) {
                 type AsTupleOfRefs<'a> = ($(&'a $name),*) where Self: 'a;
 
                 fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> {

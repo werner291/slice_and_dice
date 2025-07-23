@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::tuple_utils::{TupleAsRefsTuple, TupleFirstElement, TuplePrepend};
+use crate::mapped_index::tuple_utils::{TupleAsRefs, TupleFirstElement, TuplePrepend};
 use itertools::iproduct;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
@@ -107,11 +107,11 @@ impl_index_ref_tuple!((A, B, C));
 
 impl<Indices> MappedIndex for CompoundIndex<Indices>
 where
-    Indices: TupleAsRefsTuple,
-    for<'a> <Indices as TupleAsRefsTuple>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
+    Indices: TupleAsRefs,
+    for<'a> <Indices as TupleAsRefs>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
 {
     type Value<'a>
-        = <<Indices as TupleAsRefsTuple>::AsTupleOfRefs<'a> as IndexRefTuple<'a>>::Value
+        = <<Indices as TupleAsRefs>::AsTupleOfRefs<'a> as IndexRefTuple<'a>>::Value
     where
         Indices: 'a;
 
