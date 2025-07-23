@@ -12,11 +12,11 @@ macro_rules! impl_tuple_first_element {
     ($first:ident, $($rest:ident),*) => {
         impl<$first, $($rest),*> TupleFirstElement for ($first, $($rest),*) {
             type First = $first;
-            type Rest = ($($rest),*);
+            type Rest = ($($rest),*,);
 
             fn split_first(self) -> (Self::First, Self::Rest) {
                 let ($first, $($rest),*) = self;
-                ($first, ($($rest),*))
+                ($first, ($($rest),*,))
             }
         }
     };
@@ -128,11 +128,11 @@ pub trait TupleAppend {
 macro_rules! impl_tuple_append {
     ($($name:ident),*) => {
         impl<$($name),*> TupleAppend for ($($name),*) {
-            type AppendedTuple<Tail> = ($($name,)* Tail);
+            type AppendedTuple<Tail> = ($($name,)* Tail,);
 
             fn append<Tail>(self, tail: Tail) -> Self::AppendedTuple<Tail> {
                 let ($($name),*) = self;
-                ($($name,)* tail)
+                ($($name,)* tail,)
             }
         }
     };
@@ -221,7 +221,7 @@ mod tests {
         let t2 = (1, "a");
         let (h, tail) = t2.split_first();
         assert_eq!(h, 1);
-        assert_eq!(tail, "a");
+        assert_eq!(tail, ("a",));
 
         let t3 = (1, 2, 3);
         let (h, tail) = t3.split_first();
