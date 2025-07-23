@@ -3,7 +3,6 @@
 use crate::mapped_index::MappedIndex;
 use crate::mapped_index::tuple_utils::{TupleAsRefsTuple, TupleFirstElement, TuplePrepend};
 use itertools::iproduct;
-use tuple_list::AsTupleOfRefs;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
