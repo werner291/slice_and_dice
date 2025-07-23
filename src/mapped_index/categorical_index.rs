@@ -2,7 +2,7 @@ use super::MappedIndex;
 use std::marker::PhantomData;
 
 /// A value in a categorical index, referencing a value in the index and its position.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct CategoricalValue<'a, T, Tag> {
     /// Reference to the value in the index.
     pub value: &'a T,
@@ -18,6 +18,14 @@ impl<'idx, T: Copy, Tag> Clone for CategoricalValue<'idx, T, Tag> {
     }
 }
 
+impl<'a, T: PartialEq, Tag> PartialEq for CategoricalValue<'a, T, Tag> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.index == other.index
+    }
+}
+
+impl<'a, T: Eq, Tag> Eq for CategoricalValue<'a, T, Tag> {}
+
 /// An index for categorical values, mapping indices to values of type `T`.
 pub struct CategoricalIndex<T, Tag> {
     /// The values stored in the index.
@@ -25,9 +33,18 @@ pub struct CategoricalIndex<T, Tag> {
     pub _phantom: PhantomData<Tag>,
 }
 
-impl<'idx, T: Copy + 'idx + Eq, Tag: 'static> Eq for CategoricalIndex<T, Tag> {}
+impl<T: Clone, Tag> Clone for CategoricalIndex<T, Tag> {
+    fn clone(&self) -> Self {
+        Self {
+            values: self.values.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
 
-impl<'idx, T: Copy + 'idx + PartialEq, Tag: 'static> PartialEq<Self> for CategoricalIndex<T, Tag> {
+impl<T: Eq, Tag: 'static> Eq for CategoricalIndex<T, Tag> {}
+
+impl<T: PartialEq, Tag: 'static> PartialEq<Self> for CategoricalIndex<T, Tag> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
     }

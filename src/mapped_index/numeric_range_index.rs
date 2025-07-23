@@ -2,12 +2,20 @@ use super::MappedIndex;
 use std::marker::PhantomData;
 
 /// A value in a numeric range index, representing a position in the range.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct NumericValue<Idx, T> {
     /// The numeric index value.
     pub index: Idx,
     _phantom: PhantomData<T>,
 }
+
+impl<Idx: PartialEq, T> PartialEq for NumericValue<Idx, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+
+impl<Idx: Eq, T> Eq for NumericValue<Idx, T> {}
 
 impl<Idx: Copy, T> Copy for NumericValue<Idx, T> {}
 impl<Idx: Copy, T> Clone for NumericValue<Idx, T> {
@@ -17,13 +25,23 @@ impl<Idx: Copy, T> Clone for NumericValue<Idx, T> {
 }
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NumericRangeIndex<T> {
     /// The start of the range (inclusive).
     pub start: i32, // TODO: make this type not hardcoded
     /// The end of the range (exclusive).
     pub end: i32,
     pub _phantom: PhantomData<T>,
+}
+
+impl<T> Clone for NumericRangeIndex<T> {
+    fn clone(&self) -> Self {
+        Self {
+            start: self.start,
+            end: self.end,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<T> PartialEq for NumericRangeIndex<T> {
