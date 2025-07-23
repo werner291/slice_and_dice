@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use peano::{NonNeg, Succ, Zero};
+
 // Trait for tuples with a first element.
 pub trait TupleFirstElement {
     type First;
@@ -212,6 +214,49 @@ impl_tuple_as_refs_tuple!(
     (A, B, C, D, E, F, G, H, I)
 );
 
+/// A trait for extracting a given member of a tuple using type-level numbers.
+pub trait TupleExtract<N: NonNeg> {
+    type Before;
+    type Result;
+    type After;
+
+    fn extract(self) -> (Self::Before, Self::Result, Self::After);
+}
+
+impl<T: TupleFirstElement> TupleExtract<Zero> for T {
+    type Before = ();
+    type Result = T::First;
+    type After = T::Rest;
+
+    fn extract(self) -> (Self::Before, Self::Result, Self::After) {
+        self.split_first().prepend(())
+    }
+}
+
+impl<T, N> TupleExtract<Succ<N>> for T
+where
+    T::Rest: TupleAppend,
+    T: TupleFirstElement + TupleExtract<N>,
+    N: NonNeg,
+    <T as TupleFirstElement>::Rest: TupleExtract<N>,
+    <<T as TupleFirstElement>::Rest as TupleExtract<N>>::Before: TuplePrepend,
+{
+    type Before = <<<T as TupleFirstElement>::Rest as TupleExtract<N>>::Before as TuplePrepend>::PrependedTuple<T::First>;
+    type Result = <<T as TupleFirstElement>::Rest as TupleExtract<N>>::Result;
+    type After = <<T as TupleFirstElement>::Rest as TupleExtract<N>>::After;
+
+    fn extract(self) -> (Self::Before, Self::Result, Self::After) {
+        let (h, t) = self.split_first();
+        let (b, r, a) = t.extract();
+        (b.prepend(h), r, a)
+    }
+}
+
+// Helper method to avoid having to write out the trait every time.
+pub fn extract<N: NonNeg, T: TupleExtract<N>>(tuple: T) -> (T::Before, T::Result, T::After) {
+    tuple.extract()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,5 +320,23 @@ mod tests {
         let t2 = (1, 2);
         let t3 = t2.append(3);
         assert_eq!(t3, (1, 2, 3));
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_tuple_extract() {
+            let tuple = (1, "a", 3.14, true, 'x');
+
+            // Extract the second element (index 1)
+            let (_, extracted, _) = extract::<peano::P1, _>(tuple);
+            assert_eq!(extracted, "a");
+
+            // Extract the fourth element (index 3)
+            let (_, extracted, _) = extract::<peano::P3, _>(tuple);
+            assert_eq!(extracted, true);
+        }
     }
 }
