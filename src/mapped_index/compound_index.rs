@@ -101,29 +101,7 @@ macro_rules! impl_index_ref_tuple {
             }
         }
 
-        // impl_index_ref_tuple!(($($tail),*));
     };
-    // (($head:ident)) => {
-    //     impl<'a, $head: MappedIndex> IndexRefTuple<'a> for (&'a $head,) {
-    //         type Value<'b> = $head::Value<'b>;
-    //
-    //         fn iter(self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-    //             self.0.iter()
-    //         }
-    //
-    //         fn flatten_index_value(self, v: Self::Value<'a>) -> usize {
-    //             self.0.flatten_index_value(v)
-    //         }
-    //
-    //         fn unflatten_index_value(self, index: usize) -> Self::Value<'a> {
-    //             self.0.unflatten_index_value(index)
-    //         }
-    //
-    //         fn size(self) -> usize {
-    //             self.0.size()
-    //         }
-    //     }
-    // };
 }
 
 impl_index_ref_tuple!((A, B, C));
