@@ -27,7 +27,7 @@ pub trait MappedIndex {
     /// # Panics
     ///
     /// Implementations must panic if the value is not present in the index.
-    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize;
+    fn flatten_index_value<'a>(&'a self, value: Self::Value<'a>) -> usize;
 
     /// Returns the value for the given flat numeric index.
     ///
