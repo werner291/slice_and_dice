@@ -279,6 +279,35 @@ impl<T> ExtractAt for T {
     }
 }
 
+/// A trait for concatenating two tuples.
+pub trait TupleConcat<T> {
+    type ConcatenatedTuple;
+    fn concat(self, other: T) -> Self::ConcatenatedTuple;
+}
+
+// Base case: Empty tuple concatenated with any tuple
+impl<Right> TupleConcat<Right> for () {
+    type ConcatenatedTuple = Right;
+    fn concat(self, other: Right) -> Self::ConcatenatedTuple {
+        other
+    }
+}
+
+// Base case: Empty tuple concatenated with any tuple
+impl<Left, Right> TupleConcat<Right> for Left
+where
+    Left: TupleFirstElement,
+    Right: TuplePrepend,
+    <Left as TupleFirstElement>::Rest: TupleConcat<Right>,
+    <<Left as TupleFirstElement>::Rest as TupleConcat<Right>>::ConcatenatedTuple: TuplePrepend,
+{
+    type ConcatenatedTuple = <<<Left as TupleFirstElement>::Rest as TupleConcat<Right>>::ConcatenatedTuple as TuplePrepend>::PrependedTuple<<Left as TupleFirstElement>::First>;
+    fn concat(self, other: Right) -> Self::ConcatenatedTuple {
+        let (first, rest) = self.split_first();
+        rest.concat(other).prepend(first)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -360,5 +389,30 @@ mod tests {
             let (_, extracted, _) = tuple.extract_at::<peano::P3>();
             assert_eq!(extracted, true);
         }
+    }
+
+    #[test]
+    fn test_tuple_concat() {
+        // Empty tuple tests
+        let t1 = ();
+        let t2 = (1, 2);
+        assert_eq!(t1.concat(t2), (1, 2));
+        assert_eq!(t2.concat(t1), (1, 2));
+
+        // Single element tests
+        let t1 = (1,);
+        let t2 = (2,);
+        assert_eq!(t1.concat(t2), (1, 2));
+
+        // Multiple element tests
+        let t1 = (1, 2);
+        let t2 = (3, 4);
+        assert_eq!(t1.concat(t2), (1, 2, 3, 4));
+
+        // Mixed type tests
+        let t1 = (1, "hello");
+        let t2 = (true, 3.14);
+        let result = t1.concat(t2);
+        assert_eq!(result, (1, "hello", true, 3.14));
     }
 }
