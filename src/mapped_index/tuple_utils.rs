@@ -133,3 +133,45 @@ impl_tuple_as_refs!(
     (A, B, C, D, E, F, G, H),
     (A, B, C, D, E, F, G, H, I)
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tuple_head() {
+        let t2 = (1, "a");
+        let (h, tail) = t2.split_head();
+        assert_eq!(h, 1);
+        assert_eq!(tail, "a");
+
+        let t3 = (1, 2, 3);
+        let (h, tail) = t3.split_head();
+        assert_eq!(h, 1);
+        assert_eq!(tail, (2, 3));
+    }
+
+    #[test]
+    fn test_tuple_cons() {
+        let t1 = ("b",);
+        let t2 = t1.prepend(1);
+        assert_eq!(t2, (1, "b"));
+
+        let t2 = (2, 3);
+        let t3 = t2.prepend(1);
+        assert_eq!(t3, (1, 2, 3));
+    }
+
+    #[test]
+    fn test_tuple_as_refs() {
+        let t1 = (42,);
+        let refs = t1.as_tuple_of_refs();
+        assert_eq!(*refs.0, 42);
+
+        let t3 = (1, 2, 3);
+        let refs = t3.as_tuple_of_refs();
+        assert_eq!(*refs.0, 1);
+        assert_eq!(*refs.1, 2);
+        assert_eq!(*refs.2, 3);
+    }
+}
