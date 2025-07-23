@@ -141,6 +141,20 @@ mod tests {
         assert_eq!(*df.get_flat(2), 30);
     }
 
+    #[test]
+    fn test_nonzero_start_index() {
+        let index = NumericRangeIndex::<Tag>::new(5, 8); // Range: 5, 6, 7
+        let data = vec![100, 200, 300];
+        let df = DataFrame::new(index.clone(), data.clone());
+        assert_eq!(df.index, index);
+        assert_eq!(df.data, data);
+        assert_eq!(*df.get(NumericValue::new(5)), 100);
+        assert_eq!(*df.get(NumericValue::new(6)), 200);
+        assert_eq!(*df.get(NumericValue::new(7)), 300);
+        assert_eq!(*df.get_flat(0), 100);
+        assert_eq!(*df.get_flat(2), 300);
+    }
+
     struct StackTag;
 
     #[test]
