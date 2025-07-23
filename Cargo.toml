@@ -4,7 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-hlist2 = "0.0.15"
-tuple_list = "0.1.3"
 peano = "1.0.2"
 itertools = "0.14.0"
