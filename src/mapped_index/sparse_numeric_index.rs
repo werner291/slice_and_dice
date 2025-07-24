@@ -89,6 +89,20 @@ impl<I: Copy + 'static, T: 'static> MappedIndex for SparseNumericIndex<I, T> {
     fn size(&self) -> usize {
         self.indices.len()
     }
+
+    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().min()
+    }
+
+    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().max()
+    }
 }
 
 #[cfg(test)]

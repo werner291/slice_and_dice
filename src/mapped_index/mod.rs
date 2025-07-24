@@ -41,16 +41,10 @@ pub trait MappedIndex {
     /// Returns the minimum value in the index, if any (requires Ord).
     fn min<'a>(&'a self) -> Option<Self::Value<'a>>
     where
-        Self::Value<'a>: Ord,
-    {
-        self.iter().min()
-    }
+        Self::Value<'a>: Ord;
 
     /// Returns the maximum value in the index, if any (requires Ord).
     fn max<'a>(&'a self) -> Option<Self::Value<'a>>
     where
-        Self::Value<'a>: Ord,
-    {
-        self.iter().max()
-    }
+        Self::Value<'a>: Ord;
 }

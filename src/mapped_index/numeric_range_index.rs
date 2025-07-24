@@ -55,7 +55,14 @@ impl<I: Eq + std::fmt::Debug, T> Eq for NumericRangeIndex<I, T> {}
 
 impl<I, T> NumericRangeIndex<I, T>
 where
-    I: Copy + PartialOrd + std::ops::Add<Output = I> + std::ops::Sub<Output = I> + std::fmt::Debug + TryFrom<usize> + TryInto<usize> + 'static,
+    I: Copy
+        + PartialOrd
+        + std::ops::Add<Output = I>
+        + std::ops::Sub<Output = I>
+        + std::fmt::Debug
+        + TryFrom<usize>
+        + TryInto<usize>
+        + 'static,
     <I as TryFrom<usize>>::Error: std::fmt::Debug,
     <I as TryInto<usize>>::Error: std::fmt::Debug,
 {
@@ -84,7 +91,14 @@ where
 
 impl<I, T> MappedIndex for NumericRangeIndex<I, T>
 where
-    I: Copy + PartialOrd + std::ops::Add<Output = I> + std::ops::Sub<Output = I> + std::fmt::Debug + TryFrom<usize> + TryInto<usize> + 'static,
+    I: Copy
+        + PartialOrd
+        + std::ops::Add<Output = I>
+        + std::ops::Sub<Output = I>
+        + std::fmt::Debug
+        + TryFrom<usize>
+        + TryInto<usize>
+        + 'static,
     <I as TryFrom<usize>>::Error: std::fmt::Debug,
     <I as TryInto<usize>>::Error: std::fmt::Debug,
     T: 'static,
@@ -113,7 +127,8 @@ where
     /// Returns the numeric value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         NumericValue {
-            index: self.start + I::try_from(index).unwrap_or_else(|e| panic!("Failed to convert: {:?}", e)),
+            index: self.start
+                + I::try_from(index).unwrap_or_else(|e| panic!("Failed to convert: {:?}", e)),
             _phantom: PhantomData,
         }
     }
@@ -124,9 +139,25 @@ where
         let end: usize = self.end.try_into().unwrap();
         end - start
     }
+
+    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().min()
+    }
+
+    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().max()
+    }
 }
 
-impl<I: Copy + std::fmt::Debug + 'static, T: 'static> std::ops::Index<I> for NumericRangeIndex<I, T> {
+impl<I: Copy + std::fmt::Debug + 'static, T: 'static> std::ops::Index<I>
+    for NumericRangeIndex<I, T>
+{
     type Output = NumericValue<I, T>;
     fn index(&self, _index: I) -> &Self::Output {
         panic!("Cannot return a reference to a value by index; use get() or at() instead.");

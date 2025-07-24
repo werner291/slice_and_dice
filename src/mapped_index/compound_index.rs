@@ -167,6 +167,20 @@ where
     fn size(&self) -> usize {
         self.indices.as_ref_tuple().size()
     }
+
+    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().min()
+    }
+
+    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
+    where
+        Self::Value<'a>: Ord,
+    {
+        self.iter().max()
+    }
 }
 
 #[cfg(test)]
