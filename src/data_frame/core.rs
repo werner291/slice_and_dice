@@ -2,6 +2,7 @@
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use crate::mapped_index::MappedIndex;
+use crate::mapped_index::compound_index::CompoundIndex;
 use std::ops::Index;
 
 /// A generic DataFrame type associating an index with a data collection.
@@ -123,6 +124,34 @@ where
         DataFrame {
             index: self.index.clone(),
             data,
+        }
+    }
+}
+
+impl<I, D> DataFrame<CompoundIndex<(I,)>, D>
+where
+    I: MappedIndex + 'static,
+    D: Index<usize>,
+{
+    /// Collapse a DataFrame with a (I,) index tuple into one with just an I index.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::compound_index::CompoundIndex;
+    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// #[derive(Debug)]
+    /// struct Tag;
+    /// let index = CompoundIndex { indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),) };
+    /// let df = DataFrame::new(index, vec![1, 2, 3]);
+    /// let df2 = df.collapse_single_index();
+    /// assert_eq!(df2.index, NumericRangeIndex::<i32, Tag>::new(0, 3));
+    /// assert_eq!(df2.data, vec![1, 2, 3]);
+    /// ```
+    pub fn collapse_single_index(self) -> DataFrame<I, D> {
+        DataFrame {
+            index: self.index.collapse_single(),
+            data: self.data,
         }
     }
 }
@@ -267,5 +296,18 @@ mod tests {
         let df2 = df.map(|x| x * 2);
         assert_eq!(df2.data, vec![2, 4, 6]);
         assert_eq!(df2.index, NumericRangeIndex::<i32, Row>::new(0, 3));
+    }
+
+    #[test]
+    fn test_collapse_single_index() {
+        use crate::mapped_index::compound_index::CompoundIndex;
+        use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+        #[derive(Debug, PartialEq)]
+        struct Tag;
+        let index = CompoundIndex { indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),) };
+        let df = DataFrame::new(index, vec![1, 2, 3]);
+        let df2 = df.collapse_single_index();
+        assert_eq!(df2.index, NumericRangeIndex::<i32, Tag>::new(0, 3));
+        assert_eq!(df2.data, vec![1, 2, 3]);
     }
 }
