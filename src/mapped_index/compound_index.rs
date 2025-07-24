@@ -1,8 +1,11 @@
 #![allow(non_snake_case)]
 
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::tuple_utils::{TupleAsRefs, TupleFirstElement, TuplePrepend};
+use crate::mapped_index::tuple_utils::{
+    DropFirst, First, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleFirstElement, TuplePrepend,
+};
 use itertools::iproduct;
+use std::ops::Deref;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -27,8 +30,14 @@ impl<Indices> CompoundIndex<Indices> {
     }
 }
 
-pub trait IndexRefTuple<'a> {
-    type Value: Copy;
+impl<A: MappedIndex> CompoundIndex<(A,)> {
+    pub fn collapse_single(self) -> A {
+        self.indices.0
+    }
+}
+
+pub trait IndexRefTuple<'a>: Tuple + Copy {
+    type Value: Copy + Tuple;
 
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
 
@@ -38,72 +47,90 @@ pub trait IndexRefTuple<'a> {
 
     fn size(self) -> usize;
 }
+//
+// impl<'a, A: MappedIndex + 'a> IndexRefTuple<'a> for (&'a A,) {
+//     type Value = A::Value<'a>;
+//
+//     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+//         self.iter()
+//     }
+//
+//     fn flatten_index_value(self, v: Self::Value) -> usize {
+//         self.flatten_index_value(v)
+//     }
+//
+//     fn unflatten_index_value(self, index: usize) -> Self::Value {
+//         self.unflatten_index_value(index)
+//     }
+//
+//     fn size(self) -> usize {
+//         self.size()
+//     }
+// }
 
-impl<'a, A: MappedIndex + 'a, B: MappedIndex + 'a> IndexRefTuple<'a> for (&'a A, &'a B) {
-    type Value = (A::Value<'a>, B::Value<'a>);
+impl<'a> IndexRefTuple<'a> for () {
+    type Value = ();
 
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-        iproduct!(self.0.iter(), self.1.iter())
+        std::iter::once(())
     }
 
-    fn flatten_index_value(self, v: Self::Value) -> usize {
-        let a_flat = self.0.flatten_index_value(v.0);
-        let b_flat = self.1.flatten_index_value(v.1);
-        a_flat * self.1.size() + b_flat
+    fn flatten_index_value(self, _v: Self::Value) -> usize {
+        0
     }
 
-    fn unflatten_index_value(self, index: usize) -> Self::Value {
-        let a_size = self.1.size();
-        let a_index = index / a_size;
-        let b_index = index % a_size;
-        let a = self.0.unflatten_index_value(a_index);
-        let b = self.1.unflatten_index_value(b_index);
-        (a, b)
+    fn unflatten_index_value(self, _index: usize) -> Self::Value {
+        ()
     }
 
     fn size(self) -> usize {
-        self.0.size() * self.1.size()
+        1
     }
 }
 
-macro_rules! impl_index_ref_tuple {
-    (($head:ident, $($tail:ident),*)) => {
-        impl<'a, $head: MappedIndex, $($tail: MappedIndex),*> IndexRefTuple<'a> for (&'a $head, $(&'a $tail),*) {
-            type Value = <($($tail::Value<'a> ),*) as TuplePrepend>::PrependedTuple<$head::Value<'a>>;
+type RemoveRef<A: Deref> = A::Target;
+type IDRValue<'a, T: IndexRefTuple<'a>> = T::Value;
 
-            fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-                let (h, t) = TupleFirstElement::split_first(self);
-                iproduct!(h.iter(), t.iter())
-                    .map(|(hv, tv)| tv.prepend(hv))
-            }
+impl<'a, B: NonEmptyTuple + TupleFirstElement<First = &'a T> + Copy + 'a, T: MappedIndex + 'a>
+    IndexRefTuple<'a> for B
+where
+    Prepend<<T as MappedIndex>::Value<'a>, IDRValue<'a, DropFirst<B>>>: Copy
+        + TupleFirstElement<
+            First = <T as MappedIndex>::Value<'a>,
+            Rest = <DropFirst<B> as IndexRefTuple<'a>>::Value,
+        >,
+    DropFirst<B>: IndexRefTuple<'a>,
+{
+    type Value = Prepend<T::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>;
 
-            fn flatten_index_value(self, v: Self::Value) -> usize {
-                let (h, t) = self.split_first();
-                let h_flat = h.flatten_index_value(v.split_first().0);
-                let t_flat = t.flatten_index_value(v.split_first().1);
-                h_flat * t.size() + t_flat
-            }
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+        let (h, t) = TupleFirstElement::split_first(self);
+        MappedIndex::iter(h).flat_map(move |hv| t.iter().map(move |tv| tv.prepend(hv)))
+    }
 
-            fn unflatten_index_value(self, index: usize) -> Self::Value {
-                let (h, t) = self.split_first();
-                let h_size = t.size();
-                let h_index = index / h_size;
-                let t_index = index % h_size;
-                let h_value = h.unflatten_index_value(h_index);
-                let t_value = t.unflatten_index_value(t_index);
-                t_value.prepend(h_value)
-            }
+    fn flatten_index_value(self, v: Self::Value) -> usize {
+        let (h, t) = self.split_first();
+        let (vh, vt) = v.split_first();
+        let h_flat = h.flatten_index_value(vh);
+        let t_flat = t.flatten_index_value(vt);
+        h_flat * t.size() + t_flat
+    }
 
-            fn size(self) -> usize {
-                let (h, t) = self.split_first();
-                h.size() * t.size()
-            }
-        }
+    fn unflatten_index_value(self, index: usize) -> Self::Value {
+        let (h, t) = self.split_first();
+        let h_size = t.size();
+        let h_index = index / h_size;
+        let t_index = index % h_size;
+        let h_value = h.unflatten_index_value(h_index);
+        let t_value = t.unflatten_index_value(t_index);
+        t_value.prepend(h_value)
+    }
 
-    };
+    fn size(self) -> usize {
+        let (h, t) = self.split_first();
+        h.size() * t.size()
+    }
 }
-
-impl_index_ref_tuple!((A, B, C));
 
 pub trait IndexTuple: TupleAsRefs {
     type RefTuple<'a>: IndexRefTuple<'a>

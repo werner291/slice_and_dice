@@ -1,6 +1,11 @@
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::compound_index::CompoundIndex;
+use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple, IndexTuple};
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+use crate::mapped_index::tuple_utils::{
+    Extract, ExtractAt, ExtractLeft, ExtractRemainder, ExtractRight, TupleConcat, TupleExtract,
+};
+use itertools::Itertools;
+use peano::NonNeg;
 use std::ops::Index;
 
 /// A generic DataFrame type associating an index with a data collection.
@@ -78,39 +83,83 @@ where
         Some(DataFrame::new(compound_index, data))
     }
 }
-//
-// impl<'idx, A, B, D> DataFrame<CompoundIndex<(A, B)>, D>
-// where
-//     A: MappedIndex + Clone,
-//     B: MappedIndex + Clone,
-//     D: Index<usize>,
-// {
-//     /// Aggregate over the dimension specified by typenum (U0 for first, U1 for second).
-//     pub fn aggregate_over_a<R, F, N>(&self, mut f: F) -> DataFrame<B, Vec<R>>
-//     where
-//         F: FnMut(&mut dyn Iterator<Item = &D::Output>) -> R,
-//         N: typenum::Unsigned,
-//     {
-//         // Aggregate over A (first dimension)
-//         let a_index = self.index.indices.0.clone();
-//         let b_index = self.index.indices.1.clone();
-//         let mut result = Vec::with_capacity(b_index.size());
-//         for b_val in b_index.iter() {
-//             let mut values = (0..a_index.size()).map(|a_i| {
-//                 let a_val = a_index.unflatten_index_value(a_i);
-//                 let idx = (a_val, b_val);
-//                 &self.data[self.index.flatten_index_value(idx)]
-//             });
-//             result.push(f(&mut values));
-//         }
-//         DataFrame::new(b_index, result)
-//     }
-// }
+
+pub struct StridedIndexView<'a, D: Index<usize>> {
+    base: usize,
+    stride: usize,
+    n_strides: usize,
+    view_into: &'a D,
+}
+
+impl<'a, D> Iterator for StridedIndexView<'a, D>
+where
+    D: Index<usize>,
+{
+    type Item = &'a D::Output;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.n_strides == 0 {
+            None
+        } else {
+            let item = &self.view_into[self.base];
+            self.base += self.stride;
+            self.n_strides -= 1;
+            Some(item)
+        }
+    }
+}
+
+impl<Indices: IndexTuple, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
+where
+    D::Output: Clone,
+{
+    /// Aggregate over the dimension specified by typenum.
+    pub fn aggregate_over_dim<N: NonNeg, F, R>(
+        self,
+        mut f: F,
+    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<R>>
+    where
+        Indices: TupleExtract<N>,
+        <Indices as TupleExtract<N>>::Before: TupleConcat, // Direct requirement
+        F: for<'a> Fn(StridedIndexView<'a, D>) -> R,
+        ExtractLeft<N, Indices>: IndexTuple,
+        Extract<N, Indices>: MappedIndex,
+        ExtractRemainder<N, Indices>: IndexTuple,
+        ExtractRight<N, Indices>: IndexTuple,
+    {
+        let (l, m, r) = self.index.indices.extract_at::<N>();
+
+        let l_size = r.as_ref_tuple().size();
+        let m_size = m.size();
+        let r_size = r.as_ref_tuple().size();
+
+        let agg_data = (0..l_size)
+            .flat_map(|l_i| {
+                let f = &f;
+                let data = &self.data;
+                (0..r_size).map(move |r_i| {
+                    f(StridedIndexView {
+                        base: l_i * r_size + r_i,
+                        stride: r_size,
+                        n_strides: m_size,
+                        view_into: data,
+                    })
+                })
+            })
+            .collect_vec();
+
+        DataFrame {
+            index: CompoundIndex::new(l.concat(r)),
+            data: agg_data,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    use peano::P1;
 
     #[derive(Debug)]
     struct Tag;
@@ -166,5 +215,30 @@ mod tests {
         assert_eq!(stacked.index.indices.0.size(), 2); // Outer index size
         assert_eq!(stacked.index.indices.1, index); // Inner index
         assert_eq!(stacked.data, vec![10, 20, 30, 40]); // Flattened data
+    }
+
+    #[test]
+    fn test_aggregate_over_dim() {
+        // Define a compound index (outer: NumericRangeIndex, inner: NumericRangeIndex)
+        let outer_index = NumericRangeIndex::<Tag>::new(0, 2); // Outer index: 0, 1
+        let inner_index = NumericRangeIndex::<Tag>::new(0, 3); // Inner index: 0, 1, 2
+        let compound_index = CompoundIndex {
+            indices: (outer_index.clone(), inner_index.clone()),
+        };
+
+        // Create a DataFrame with the compound index and some data
+        let data = vec![10, 20, 30, 40, 50, 60]; // 2 outer * 3 inner = 6 elements
+        let df = DataFrame::new(compound_index, data);
+
+        // Define an aggregation function (e.g., sum over the inner dimension)
+        let agg_df = df.aggregate_over_dim::<P1, _, i32>(|iter| iter.cloned().sum::<i32>());
+
+        // Expected result: sum over the inner dimension
+        let expected_index = outer_index; // Remaining index after aggregation
+        let expected_data = vec![60, 150]; // [10+20+30, 40+50+60]
+
+        // Verify the result
+        assert_eq!(agg_df.index.collapse_single(), expected_index);
+        assert_eq!(agg_df.data, expected_data);
     }
 }

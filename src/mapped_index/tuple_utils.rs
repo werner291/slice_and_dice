@@ -2,10 +2,52 @@
 
 use peano::{NonNeg, Succ, Zero};
 
+/// A placeholder dummy type for "a tuple that is too big"
+pub struct TooBig;
+
+pub trait Tuple: TupleAppend + TuplePrepend + TupleConcat {}
+
+impl Tuple for () {}
+macro_rules! impl_tuple {
+    // Recursive case: Implement for a tuple and reduce its size
+    (($head:ident, $($tail:ident),+)) => {
+        impl<$head, $($tail),+> Tuple for ($head, $($tail),+,) {}
+        impl_tuple!(($($tail),+));
+    };
+    // Base case: Stop recursion when only one element is left
+    (($head:ident)) => {
+        impl<$head> Tuple for ($head,) {}
+    };
+}
+
+// Generate implementations for tuples of size 2 and up
+impl_tuple!((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10));
+
+impl Tuple for TooBig {}
+
+pub trait NonEmptyTuple: Tuple + TupleFirstElement {}
+
+impl NonEmptyTuple for TooBig {}
+
+macro_rules! impl_non_empty_tuple {
+    // Recursive case: Implement for a tuple and reduce its size
+    (($head:ident, $($tail:ident),*)) => {
+        impl<$head, $($tail),*> NonEmptyTuple for ($head, $($tail),*) {}
+        impl_non_empty_tuple!(($($tail),*));
+    };
+    // Base case: Implement for a single-element tuple
+    (($head:ident)) => {
+        impl<$head> NonEmptyTuple for ($head,) {}
+    };
+}
+
+// Generate implementations for non-empty tuples of size 1 and up
+impl_non_empty_tuple!((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10));
+
 // Trait for tuples with a first element.
 pub trait TupleFirstElement {
     type First;
-    type Rest;
+    type Rest: Tuple;
 
     fn split_first(self) -> (Self::First, Self::Rest);
 }
@@ -33,18 +75,20 @@ impl<A> TupleFirstElement for (A,) {
     }
 }
 
-impl_tuple_first_element!(A, B);
-impl_tuple_first_element!(A, B, C);
-impl_tuple_first_element!(A, B, C, D);
-impl_tuple_first_element!(A, B, C, D, E);
-impl_tuple_first_element!(A, B, C, D, E, F);
-impl_tuple_first_element!(A, B, C, D, E, F, G);
-impl_tuple_first_element!(A, B, C, D, E, F, G, H);
-impl_tuple_first_element!(A, B, C, D, E, F, G, H, J);
+impl_tuple_first_element!(T1, T2);
+impl_tuple_first_element!(T1, T2, T3);
+impl_tuple_first_element!(T1, T2, T3, T4);
+impl_tuple_first_element!(T1, T2, T3, T4, T5);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6, T7);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6, T7, T8);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
+impl_tuple_first_element!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);
 
 pub trait TupleLastElement {
     type Last;
-    type Rest;
+    type Rest: Tuple;
 
     fn split_last(self) -> (Self::Rest, Self::Last);
 }
@@ -85,7 +129,7 @@ impl<A> TupleLastElement for (A,) {
 
 // Trait for constructing one greater-size tuple
 pub trait TuplePrepend {
-    type PrependedTuple<A>;
+    type PrependedTuple<A>: NonEmptyTuple;
 
     fn prepend<A>(self, head: A) -> Self::PrependedTuple<A>;
 }
@@ -112,17 +156,52 @@ impl<A> TuplePrepend for (A,) {
         (head, A)
     }
 }
-impl_tuple_prepend!(A, B);
-impl_tuple_prepend!(A, B, C);
-impl_tuple_prepend!(A, B, C, D);
-impl_tuple_prepend!(A, B, C, D, E);
-impl_tuple_prepend!(A, B, C, D, E, F);
-impl_tuple_prepend!(A, B, C, D, E, F, G);
-impl_tuple_prepend!(A, B, C, D, E, F, G, H);
-impl_tuple_prepend!(A, B, C, D, E, F, G, H, J);
+impl_tuple_prepend!(T1, T2);
+impl_tuple_prepend!(T1, T2, T3);
+impl_tuple_prepend!(T1, T2, T3, T4);
+impl_tuple_prepend!(T1, T2, T3, T4, T5);
+impl_tuple_prepend!(T1, T2, T3, T4, T5, T6);
+impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7);
+impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7, T8);
+impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TuplePrepend
+    for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
+{
+    type PrependedTuple<A> = TooBig;
+
+    fn prepend<A>(self, head: A) -> Self::PrependedTuple<A> {
+        unimplemented!()
+    }
+}
+
+impl TupleAppend for TooBig {
+    type AppendedTuple<A> = TooBig;
+
+    fn append<A>(self, _tail: A) -> Self::AppendedTuple<A> {
+        unimplemented!()
+    }
+}
+
+impl TuplePrepend for TooBig {
+    type PrependedTuple<A> = TooBig;
+
+    fn prepend<A>(self, _head: A) -> Self::PrependedTuple<A> {
+        unimplemented!()
+    }
+}
+
+impl TupleFirstElement for TooBig {
+    type First = TooBig;
+    type Rest = ();
+
+    fn split_first(self) -> (Self::First, Self::Rest) {
+        unimplemented!()
+    }
+}
 
 pub trait TupleAppend {
-    type AppendedTuple<A>;
+    type AppendedTuple<A>: NonEmptyTuple;
 
     fn append<A>(self, tail: A) -> Self::AppendedTuple<A>;
 }
@@ -149,14 +228,24 @@ impl<A> TupleAppend for (A,) {
     }
 }
 
-impl_tuple_append!(A, B);
-impl_tuple_append!(A, B, C);
-impl_tuple_append!(A, B, C, D);
-impl_tuple_append!(A, B, C, D, E);
-impl_tuple_append!(A, B, C, D, E, F);
-impl_tuple_append!(A, B, C, D, E, F, G);
-impl_tuple_append!(A, B, C, D, E, F, G, H);
-impl_tuple_append!(A, B, C, D, E, F, G, H, I);
+impl_tuple_append!(T1, T2);
+impl_tuple_append!(T1, T2, T3);
+impl_tuple_append!(T1, T2, T3, T4);
+impl_tuple_append!(T1, T2, T3, T4, T5);
+impl_tuple_append!(T1, T2, T3, T4, T5, T6);
+impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7);
+impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7, T8);
+impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TupleAppend
+    for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
+{
+    type AppendedTuple<A> = TooBig;
+
+    fn append<A>(self, _tail: A) -> Self::AppendedTuple<A> {
+        unimplemented!()
+    }
+}
 
 pub trait TupleAsRefs {
     type AsTupleOfRefs<'a>
@@ -216,9 +305,9 @@ impl_tuple_as_refs_tuple!(
 
 /// A trait for extracting a given member of a tuple using type-level numbers.
 pub trait TupleExtract<N: NonNeg> {
-    type Before;
+    type Before: Tuple;
     type Result;
-    type After;
+    type After: Tuple;
 
     fn extract_recursive(self) -> (Self::Before, Self::Result, Self::After);
 }
@@ -280,29 +369,40 @@ impl<T> ExtractAt for T {
 }
 
 /// A trait for concatenating two tuples.
-pub trait TupleConcat<T> {
-    type ConcatenatedTuple;
-    fn concat(self, other: T) -> Self::ConcatenatedTuple;
+pub trait TupleConcat {
+    type ConcatenatedTuple<T: Tuple>: Tuple;
+    fn concat<Right: Tuple>(self, other: Right) -> Self::ConcatenatedTuple<Right>;
 }
 
+pub type First<T: TupleFirstElement> = T::First;
+pub type DropFirst<T: TupleFirstElement> = T::Rest;
+pub type Prepend<A, T: TuplePrepend> = T::PrependedTuple<A>;
+pub type Concat<Left: TupleConcat, Right> = Left::ConcatenatedTuple<Right>;
+
+pub type Extract<N, T> = <T as TupleExtract<N>>::Result;
+pub type ExtractLeft<N, T> = <T as TupleExtract<N>>::Before;
+pub type ExtractRight<N, T> = <T as TupleExtract<N>>::After;
+pub type ExtractRemainder<N, T> = Concat<ExtractLeft<N, T>, ExtractRight<N, T>>;
+
 // Base case: Empty tuple concatenated with any tuple
-impl<Right> TupleConcat<Right> for () {
-    type ConcatenatedTuple = Right;
-    fn concat(self, other: Right) -> Self::ConcatenatedTuple {
+impl TupleConcat for () {
+    type ConcatenatedTuple<Right: Tuple> = Right;
+    fn concat<Right: Tuple>(self, other: Right) -> Self::ConcatenatedTuple<Right> {
         other
     }
 }
 
-// Base case: Empty tuple concatenated with any tuple
-impl<Left, Right> TupleConcat<Right> for Left
+impl<Left> TupleConcat for Left
 where
     Left: TupleFirstElement,
-    Right: TuplePrepend,
-    <Left as TupleFirstElement>::Rest: TupleConcat<Right>,
-    <<Left as TupleFirstElement>::Rest as TupleConcat<Right>>::ConcatenatedTuple: TuplePrepend,
+    DropFirst<Left>: TupleConcat,
 {
-    type ConcatenatedTuple = <<<Left as TupleFirstElement>::Rest as TupleConcat<Right>>::ConcatenatedTuple as TuplePrepend>::PrependedTuple<<Left as TupleFirstElement>::First>;
-    fn concat(self, other: Right) -> Self::ConcatenatedTuple {
+    type ConcatenatedTuple<Right: Tuple> = Prepend<First<Self>, Concat<DropFirst<Self>, Right>>;
+
+    fn concat<Right: Tuple>(self, other: Right) -> Self::ConcatenatedTuple<Right>
+    where
+        Concat<DropFirst<Left>, Right>: TuplePrepend,
+    {
         let (first, rest) = self.split_first();
         rest.concat(other).prepend(first)
     }
