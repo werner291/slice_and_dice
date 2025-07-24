@@ -97,6 +97,18 @@ where
 }
 
 /// Extension trait for creating a DataFrame with a NumericRangeIndex from an iterator.
+///
+/// # Example
+/// ```
+/// use slice_and_dice::data_frame::core::DataFrameFromNumericExt;
+/// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+/// // Tag type to mark the index dimension
+/// #[derive(Debug)]
+/// struct Row;
+/// let df = (0..3).to_numeric_dataframe::<Row>();
+/// assert_eq!(df.index, NumericRangeIndex::<Row>::new(0, 3));
+/// assert_eq!(df.data, vec![0, 1, 2]);
+/// ```
 pub trait DataFrameFromNumericExt: Sized {
     fn to_numeric_dataframe<Tag: 'static>(
         self,
@@ -126,6 +138,19 @@ where
 }
 
 /// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (i32, T).
+///
+/// # Example
+/// ```
+/// use slice_and_dice::data_frame::core::DataFrameFromSparseNumericExt;
+/// use slice_and_dice::mapped_index::sparse_numeric_index::SparseNumericIndex;
+/// #[derive(Debug)]
+/// struct Row;
+/// let df = [(10, "a"), (20, "b")]
+///     .into_iter()
+///     .to_sparse_numeric_dataframe::<Row>();
+/// assert_eq!(df.index, SparseNumericIndex::<Row> { indices: vec![10, 20], _phantom: std::marker::PhantomData });
+/// assert_eq!(df.data, vec!["a", "b"]);
+/// ```
 pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i32, T)> + Sized {
     fn to_sparse_numeric_dataframe<Tag: 'static>(
         self,
