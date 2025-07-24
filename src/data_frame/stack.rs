@@ -17,7 +17,8 @@ where
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
     pub fn stack<StackTag: 'static + std::fmt::Debug>(
         dfs: impl IntoIterator<Item = DataFrame<I, D>>,
-    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<i32, StackTag>, I)>, Vec<D::Output>>> {
+    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<usize, StackTag>, I)>, Vec<D::Output>>>
+    {
         let dfs: Vec<DataFrame<I, D>> = dfs.into_iter().collect();
         if dfs.is_empty() {
             return None;
@@ -29,7 +30,7 @@ where
                 panic!("Indices mismatched.");
             }
         }
-        let outer_index = NumericRangeIndex::new(0, dfs.len() as i32);
+        let outer_index = NumericRangeIndex::new(0, dfs.len());
         let compound_index = CompoundIndex {
             indices: (outer_index, first_index.clone()),
         };
