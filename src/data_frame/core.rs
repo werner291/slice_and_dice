@@ -38,8 +38,8 @@ where
 
 impl<I, D> DataFrame<I, D>
 where
-    I: MappedIndex,
-    D: Index<usize>,
+    I: MappedIndex + Clone,
+    D: Index<usize> + IntoIterator,
 {
     /// Construct a new DataFrame from index and data.
     ///
@@ -97,6 +97,35 @@ where
     }
 }
 
+impl<I, T> DataFrame<I, Vec<T>>
+where
+    I: MappedIndex + Clone,
+{
+    /// Apply a function to all values in the DataFrame, returning a new DataFrame with mapped data.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![1, 2, 3]);
+    /// let df2 = df.map(|x| x * 10);
+    /// assert_eq!(df2.data, vec![10, 20, 30]);
+    /// assert_eq!(df2.index, NumericRangeIndex::<i32, Row>::new(0, 3));
+    /// ```
+    pub fn map<U, F>(&self, mut f: F) -> DataFrame<I, Vec<U>>
+    where
+        F: FnMut(&T) -> U,
+    {
+        let data = self.data.iter().map(|v| f(v)).collect();
+        DataFrame {
+            index: self.index.clone(),
+            data,
+        }
+    }
+}
+
 /// Extension trait for creating a DataFrame with a NumericRangeIndex from an iterator.
 ///
 /// # Example
@@ -124,7 +153,9 @@ where
     I: Iterator,
     I::Item: 'static,
 {
-    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(self) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<I::Item>> {
+    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(
+        self,
+    ) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<I::Item>> {
         let data: Vec<I::Item> = self.collect();
         let len = data.len() as i32;
         DataFrame {
@@ -223,5 +254,17 @@ mod tests {
             .to_sparse_numeric_dataframe::<Tag>();
         assert_eq!(df.index.indices, vec![10i64, 20i64]);
         assert_eq!(df.data, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn test_map() {
+        use crate::data_frame::core::DataFrame;
+        use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+        #[derive(Debug, PartialEq)]
+        struct Row;
+        let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![1, 2, 3]);
+        let df2 = df.map(|x| x * 2);
+        assert_eq!(df2.data, vec![2, 4, 6]);
+        assert_eq!(df2.index, NumericRangeIndex::<i32, Row>::new(0, 3));
     }
 }

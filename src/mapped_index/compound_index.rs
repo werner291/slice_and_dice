@@ -8,19 +8,12 @@ use crate::tuple_utils::{
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
 /// The flat index is computed by flattening the tuple of indices into a single dimension.
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompoundIndex<Indices> {
     /// The tuple of sub-indices.
     pub indices: Indices,
 }
-
-impl<Indices: PartialEq> PartialEq for CompoundIndex<Indices> {
-    fn eq(&self, other: &Self) -> bool {
-        self.indices == other.indices
-    }
-}
-
-impl<Indices: Eq> Eq for CompoundIndex<Indices> {}
 
 impl<Indices> CompoundIndex<Indices> {
     pub fn new(indices: Indices) -> Self {
