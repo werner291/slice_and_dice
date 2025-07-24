@@ -1,8 +1,8 @@
 //! Aggregation logic for DataFrame over a dimension.
 use super::core::DataFrame;
 use crate::data_frame::strided_index_view::StridedIndexView;
-use crate::mapped_index::MappedIndex;
 use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple, IndexTuple};
+use crate::mapped_index::MappedIndex;
 use crate::tuple_utils::{
     Extract, ExtractAt, ExtractLeft, ExtractRemainder, ExtractRight, TupleConcat, TupleExtract,
 };
@@ -89,8 +89,8 @@ mod tests {
 
     #[test]
     fn test_aggregate_over_dim() {
-        let outer_index = NumericRangeIndex::<Tag>::new(0, 2);
-        let inner_index = NumericRangeIndex::<Tag>::new(0, 3);
+        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };
@@ -105,8 +105,8 @@ mod tests {
 
     #[test]
     fn test_mean_over_dim() {
-        let outer_index = NumericRangeIndex::<Tag>::new(0, 2);
-        let inner_index = NumericRangeIndex::<Tag>::new(0, 3);
+        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };

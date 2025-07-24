@@ -4,22 +4,22 @@ use std::marker::PhantomData;
 /// A value in a numeric range index, representing a position in the range.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct NumericValue<Idx, T> {
+pub struct NumericValue<I: std::fmt::Debug, T> {
     /// The numeric index value.
-    pub index: Idx,
+    pub index: I,
     _phantom: PhantomData<T>,
 }
 
-impl<Idx: PartialEq, T> PartialEq for NumericValue<Idx, T> {
+impl<I: PartialEq + std::fmt::Debug, T> PartialEq for NumericValue<I, T> {
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index
     }
 }
 
-impl<Idx: Eq, T> Eq for NumericValue<Idx, T> {}
+impl<I: Eq + std::fmt::Debug, T> Eq for NumericValue<I, T> {}
 
-impl<Idx: Copy, T> Copy for NumericValue<Idx, T> {}
-impl<Idx: Copy, T> Clone for NumericValue<Idx, T> {
+impl<I: Copy + std::fmt::Debug, T> Copy for NumericValue<I, T> {}
+impl<I: Copy + std::fmt::Debug, T> Clone for NumericValue<I, T> {
     fn clone(&self) -> Self {
         *self
     }
@@ -28,78 +28,46 @@ impl<Idx: Copy, T> Clone for NumericValue<Idx, T> {
 /// An index representing a numeric range from `start` to `end` (exclusive).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct NumericRangeIndex<T> {
+pub struct NumericRangeIndex<I: std::fmt::Debug, T> {
     /// The start of the range (inclusive).
-    pub start: i32, // TODO: make this type not hardcoded
+    pub start: I,
     /// The end of the range (exclusive).
-    pub end: i32,
+    pub end: I,
     pub _phantom: PhantomData<T>,
 }
 
-impl<T> Clone for NumericRangeIndex<T> {
+impl<I: Clone + std::fmt::Debug, T> Clone for NumericRangeIndex<I, T> {
     fn clone(&self) -> Self {
         Self {
-            start: self.start,
-            end: self.end,
+            start: self.start.clone(),
+            end: self.end.clone(),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<T> PartialEq for NumericRangeIndex<T> {
+impl<I: PartialEq + std::fmt::Debug, T> PartialEq for NumericRangeIndex<I, T> {
     fn eq(&self, other: &Self) -> bool {
         self.start == other.start && self.end == other.end
     }
 }
-impl<T> Eq for NumericRangeIndex<T> {}
+impl<I: Eq + std::fmt::Debug, T> Eq for NumericRangeIndex<I, T> {}
 
-impl<T: 'static> MappedIndex for NumericRangeIndex<T> {
-    type Value<'a> = NumericValue<i32, T>;
-
-    /// Returns an iterator over all numeric values in the range.
-    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        (self.start..self.end).map(move |i| NumericValue {
-            index: i,
-            _phantom: PhantomData,
-        })
-    }
-
-    /// Returns the flat index for a numeric value (its position in the range).
-    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
-        (value.index - self.start) as usize
-    }
-
-    /// Returns the numeric value for a given flat index.
-    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
-        NumericValue {
-            index: index as i32 + self.start,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Returns the number of values in the numeric range index.
-    fn size(&self) -> usize {
-        (self.end - self.start) as usize
-    }
-}
-
-impl<T: 'static> std::ops::Index<i32> for NumericRangeIndex<T> {
-    type Output = NumericValue<i32, T>;
-    fn index(&self, _index: i32) -> &Self::Output {
-        panic!("Cannot return a reference to a value by index; use get() or at() instead.");
-    }
-}
-
-impl<T> NumericRangeIndex<T> {
+impl<I, T> NumericRangeIndex<I, T>
+where
+    I: Copy + PartialOrd + std::ops::Add<Output = I> + std::ops::Sub<Output = I> + std::fmt::Debug + TryFrom<usize> + TryInto<usize> + 'static,
+    <I as TryFrom<usize>>::Error: std::fmt::Debug,
+    <I as TryInto<usize>>::Error: std::fmt::Debug,
+{
     /// Create a new NumericRangeIndex from start and end.
-    pub fn new(start: i32, end: i32) -> Self {
+    pub fn new(start: I, end: I) -> Self {
         Self {
             start,
             end,
             _phantom: PhantomData,
         }
     }
-    pub fn at(&self, index: i32) -> NumericValue<i32, T> {
+    pub fn at(&self, index: I) -> NumericValue<I, T> {
         if index >= self.start && index < self.end {
             NumericValue {
                 index,
@@ -114,9 +82,60 @@ impl<T> NumericRangeIndex<T> {
     }
 }
 
-impl<'idx, Idx, T> NumericValue<Idx, T> {
+impl<I, T> MappedIndex for NumericRangeIndex<I, T>
+where
+    I: Copy + PartialOrd + std::ops::Add<Output = I> + std::ops::Sub<Output = I> + std::fmt::Debug + TryFrom<usize> + TryInto<usize> + 'static,
+    <I as TryFrom<usize>>::Error: std::fmt::Debug,
+    <I as TryInto<usize>>::Error: std::fmt::Debug,
+    T: 'static,
+{
+    type Value<'a> = NumericValue<I, T>;
+
+    /// Returns an iterator over all numeric values in the range.
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        let start = self.start;
+        let end = self.end;
+        let start_usize: usize = start.try_into().unwrap();
+        let end_usize: usize = end.try_into().unwrap();
+        (start_usize..end_usize).map(move |i| NumericValue {
+            index: I::try_from(i).unwrap_or_else(|e| panic!("Failed to convert: {:?}", e)),
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Returns the flat index for a numeric value (its position in the range).
+    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
+        let idx: usize = value.index.try_into().unwrap();
+        let start: usize = self.start.try_into().unwrap();
+        idx - start
+    }
+
+    /// Returns the numeric value for a given flat index.
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        NumericValue {
+            index: self.start + I::try_from(index).unwrap_or_else(|e| panic!("Failed to convert: {:?}", e)),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Returns the number of values in the numeric range index.
+    fn size(&self) -> usize {
+        let start: usize = self.start.try_into().unwrap();
+        let end: usize = self.end.try_into().unwrap();
+        end - start
+    }
+}
+
+impl<I: Copy + std::fmt::Debug + 'static, T: 'static> std::ops::Index<I> for NumericRangeIndex<I, T> {
+    type Output = NumericValue<I, T>;
+    fn index(&self, _index: I) -> &Self::Output {
+        panic!("Cannot return a reference to a value by index; use get() or at() instead.");
+    }
+}
+
+impl<'idx, I: std::fmt::Debug, T> NumericValue<I, T> {
     /// Create a new NumericValue from an index.
-    pub fn new(index: Idx) -> Self {
+    pub fn new(index: I) -> Self {
         Self {
             index,
             _phantom: PhantomData,
@@ -128,13 +147,12 @@ impl<'idx, Idx, T> NumericValue<Idx, T> {
 mod tests {
     use super::*;
     use crate::mapped_index::MappedIndex;
-
     #[test]
     fn test_flat_index_round_trip() {
-        let _range: NumericRangeIndex<i32> = NumericRangeIndex::new(10, 20);
-        let val = NumericValue::new(13);
-        let flat = _range.flatten_index_value(val);
-        let round = _range.unflatten_index_value(flat);
+        let _range: NumericRangeIndex<i32, ()> = NumericRangeIndex::new(10, 20);
+        let val: NumericValue<i32, ()> = NumericValue::new(13);
+        let flat = (val.index - _range.start) as usize;
+        let round: NumericValue<i32, ()> = NumericValue::new(flat as i32 + _range.start);
         assert_eq!(val.index, round.index);
     }
 }

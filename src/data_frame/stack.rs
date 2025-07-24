@@ -1,8 +1,8 @@
 //! Stacking logic for DataFrame.
 use super::core::DataFrame;
-use crate::mapped_index::MappedIndex;
 use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+use crate::mapped_index::MappedIndex;
 use std::ops::Index;
 
 impl<I, D> DataFrame<I, D>
@@ -15,9 +15,9 @@ where
     ///
     /// The top-level index selects the original DataFrame, and the lower-level index is from the original DataFrames.
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
-    pub fn stack<StackTag: 'static>(
+    pub fn stack<StackTag: 'static + std::fmt::Debug>(
         dfs: impl IntoIterator<Item = DataFrame<I, D>>,
-    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<StackTag>, I)>, Vec<D::Output>>> {
+    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<i32, StackTag>, I)>, Vec<D::Output>>> {
         let dfs: Vec<DataFrame<I, D>> = dfs.into_iter().collect();
         if dfs.is_empty() {
             return None;
@@ -50,11 +50,12 @@ mod tests {
 
     #[derive(Debug)]
     struct Tag;
+    #[derive(Debug)]
     struct StackTag;
 
     #[test]
     fn test_stack() {
-        let index = NumericRangeIndex::<Tag>::new(0, 2);
+        let index = NumericRangeIndex::<i32, Tag>::new(0, 2);
         let df1 = DataFrame::new(index.clone(), vec![10, 20]);
         let df2 = DataFrame::new(index.clone(), vec![30, 40]);
         let stacked = DataFrame::stack::<StackTag>(vec![df1, df2]).unwrap();

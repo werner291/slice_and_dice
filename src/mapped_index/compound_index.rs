@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn test_compound_index_size_categorical_numeric() {
         let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<NumTag>::new(0, 3);
+        let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
         assert_eq!(MappedIndex::size(&ci), 2 * 3);
     }
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_compound_index_iter_categorical_numeric() {
         let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<NumTag>::new(0, 2);
+        let num = NumericRangeIndex::<i32, NumTag>::new(0, 2);
         let ci = CompoundIndex::new((cat.clone(), num.clone()));
         let items: Vec<_> = ci.iter().collect();
         assert_eq!(items.len(), 4);
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn test_flatten_unflatten_round_trip_categorical_numeric() {
         let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<NumTag>::new(0, 3);
+        let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
         for v in ci.iter() {
             let flat = ci.flatten_index_value(v);

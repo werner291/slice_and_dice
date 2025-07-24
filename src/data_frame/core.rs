@@ -16,7 +16,7 @@ use std::ops::Index;
 /// // Tag type to mark the index dimension
 /// #[derive(Debug)]
 /// struct Row;
-/// let index = NumericRangeIndex::<Row>::new(0, 3);
+/// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
 /// let data = vec![10, 20, 30];
 /// let df = DataFrame::new(index.clone(), data.clone());
 /// assert_eq!(df.index, index);
@@ -50,7 +50,7 @@ where
     /// // Tag type to mark the index dimension
     /// #[derive(Debug)]
     /// struct Row;
-    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
     /// let data = vec![10, 20, 30];
     /// let df = DataFrame::new(index.clone(), data.clone());
     /// assert_eq!(df.index, index);
@@ -69,7 +69,7 @@ where
     /// // Tag type to mark the index dimension
     /// #[derive(Debug)]
     /// struct Row;
-    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
     /// let data = vec![10, 20, 30];
     /// let df = DataFrame::new(index, data);
     /// assert_eq!(*df.get(NumericValue::new(1)), 20);
@@ -87,7 +87,7 @@ where
     /// // Tag type to mark the index dimension
     /// #[derive(Debug)]
     /// struct Row;
-    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
     /// let data = vec![10, 20, 30];
     /// let df = DataFrame::new(index, data);
     /// assert_eq!(*df.get_flat(2), 30);
@@ -107,13 +107,13 @@ where
 /// #[derive(Debug)]
 /// struct Row;
 /// let df = (0..3).to_numeric_dataframe::<Row>();
-/// assert_eq!(df.index, NumericRangeIndex::<Row>::new(0, 3));
+/// assert_eq!(df.index, NumericRangeIndex::<i32, Row>::new(0, 3));
 /// assert_eq!(df.data, vec![0, 1, 2]);
 /// ```
 pub trait DataFrameFromNumericExt: Sized {
-    fn to_numeric_dataframe<Tag: 'static>(
+    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(
         self,
-    ) -> DataFrame<NumericRangeIndex<Tag>, Vec<Self::Item>>
+    ) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<Self::Item>>
     where
         Self: Iterator,
         Self::Item: 'static;
@@ -124,7 +124,7 @@ where
     I: Iterator,
     I::Item: 'static,
 {
-    fn to_numeric_dataframe<Tag: 'static>(self) -> DataFrame<NumericRangeIndex<Tag>, Vec<I::Item>> {
+    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(self) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<I::Item>> {
         let data: Vec<I::Item> = self.collect();
         let len = data.len() as i32;
         DataFrame {
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_start_index() {
-        let index = NumericRangeIndex::<Tag>::new(5, 8); // Range: 5, 6, 7
+        let index = NumericRangeIndex::<i32, Tag>::new(5, 8); // Range: 5, 6, 7
         let data = vec![100, 200, 300];
         let df = DataFrame::new(index.clone(), data.clone());
         assert_eq!(df.index, index);
