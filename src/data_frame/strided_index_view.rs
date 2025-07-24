@@ -27,6 +27,15 @@ where
     }
 }
 
+impl<'a, D> ExactSizeIterator for StridedIndexView<'a, D>
+where
+    D: Index<usize>,
+{
+    fn len(&self) -> usize {
+        self.n_strides
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

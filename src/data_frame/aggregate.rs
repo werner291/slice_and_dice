@@ -51,6 +51,31 @@ where
             data: agg_data,
         }
     }
+
+    /// Compute the mean over the dimension specified by typenum.
+    ///
+    /// The mean is computed as f64, regardless of the input type.
+    pub fn mean_over_dim<N: NonNeg>(
+        self,
+    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<f64>>
+    where
+        Indices: TupleExtract<N>,
+        <Indices as TupleExtract<N>>::Before: TupleConcat,
+        D::Output: Copy + Into<f64>,
+        ExtractLeft<N, Indices>: IndexTuple,
+        Extract<N, Indices>: MappedIndex,
+        ExtractRemainder<N, Indices>: IndexTuple,
+        ExtractRight<N, Indices>: IndexTuple,
+    {
+        self.aggregate_over_dim::<N, _, f64>(|iter| {
+            let n = iter.len();
+            if n == 0 {
+                f64::NAN
+            } else {
+                iter.copied().map(Into::into).sum::<f64>() / n as f64
+            }
+        })
+    }
 }
 
 #[cfg(test)]
@@ -76,5 +101,22 @@ mod tests {
         let expected_data = vec![60, 150];
         assert_eq!(agg_df.index.collapse_single(), expected_index);
         assert_eq!(agg_df.data, expected_data);
+    }
+
+    #[test]
+    fn test_mean_over_dim() {
+        let outer_index = NumericRangeIndex::<Tag>::new(0, 2);
+        let inner_index = NumericRangeIndex::<Tag>::new(0, 3);
+        let compound_index = CompoundIndex {
+            indices: (outer_index.clone(), inner_index.clone()),
+        };
+        let data = vec![10, 20, 30, 40, 50, 60];
+        let df = DataFrame::new(compound_index, data);
+        let mean_df = df.mean_over_dim::<P1>();
+        let expected_index = outer_index;
+        let expected_data = vec![(10.0 + 20.0 + 30.0) / 3.0, (40.0 + 50.0 + 60.0) / 3.0];
+        assert_eq!(mean_df.index.collapse_single(), expected_index);
+        assert!((mean_df.data[0] - expected_data[0]).abs() < 1e-8);
+        assert!((mean_df.data[1] - expected_data[1]).abs() < 1e-8);
     }
 }
