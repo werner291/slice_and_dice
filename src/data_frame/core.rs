@@ -25,7 +25,7 @@ use std::ops::Index;
 /// assert_eq!(*df.get_flat(2), 30);
 /// ```
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataFrame<I, D>
 where
     I: MappedIndex,
