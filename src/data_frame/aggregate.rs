@@ -55,8 +55,8 @@ where
 
     /// Compute the mean over the dimension specified by typenum, with a generic output type.
     ///
-    /// The mean is computed as Out, which must support Zero, AddAssign, Div, From<usize>, and Copy.
-    pub fn mean_over_dim_generic<N: NonNeg, Out>(
+    /// The mean is computed as Out, which must support Zero, AddAssign, Div, FromPrimitive, and Copy.
+    pub fn mean_over_dim<N: NonNeg, Out>(
         self,
     ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<Out>>
     where
@@ -81,22 +81,6 @@ where
                 sum / Out::from_usize(n).unwrap()
             }
         })
-    }
-
-    /// Compute the mean over the dimension specified by typenum as f64 (convenience method).
-    pub fn mean_over_dim<N: NonNeg>(
-        self,
-    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<f64>>
-    where
-        Indices: TupleExtract<N>,
-        <Indices as TupleExtract<N>>::Before: TupleConcat,
-        D::Output: Copy + Into<f64>,
-        ExtractLeft<N, Indices>: IndexTuple,
-        Extract<N, Indices>: MappedIndex,
-        ExtractRemainder<N, Indices>: IndexTuple,
-        ExtractRight<N, Indices>: IndexTuple,
-    {
-        self.mean_over_dim_generic::<N, f64>()
     }
 }
 
@@ -134,7 +118,7 @@ mod tests {
         };
         let data = vec![10, 20, 30, 40, 50, 60];
         let df = DataFrame::new(compound_index, data);
-        let mean_df = df.mean_over_dim::<P1>();
+        let mean_df = df.mean_over_dim::<P1, f64>();
         let expected_index = outer_index;
         let expected_data = vec![(10.0 + 20.0 + 30.0) / 3.0, (40.0 + 50.0 + 60.0) / 3.0];
         assert_eq!(mean_df.index.collapse_single(), expected_index);
