@@ -9,6 +9,15 @@ pub struct SparseNumericIndex<T> {
     pub _phantom: PhantomData<T>,
 }
 
+impl<T> Clone for SparseNumericIndex<T> {
+    fn clone(&self) -> Self {
+        Self {
+            indices: self.indices.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<T> PartialEq for SparseNumericIndex<T> {
     fn eq(&self, other: &Self) -> bool {
         self.indices == other.indices
