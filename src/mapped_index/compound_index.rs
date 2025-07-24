@@ -168,13 +168,16 @@ where
         self.indices.as_ref_tuple().size()
     }
 
+    /// Lexicographic min (using iterator)
     fn min<'a>(&'a self) -> Option<Self::Value<'a>>
     where
         Self::Value<'a>: Ord,
     {
+        // Tuple recursion for min is not available; use iterator (lexicographic)
         self.iter().min()
     }
 
+    /// Lexicographic max (using iterator)
     fn max<'a>(&'a self) -> Option<Self::Value<'a>>
     where
         Self::Value<'a>: Ord,

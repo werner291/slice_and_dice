@@ -144,14 +144,23 @@ where
     where
         Self::Value<'a>: Ord,
     {
-        self.iter().min()
+        if self.size() == 0 {
+            None
+        } else {
+            Some(self.unflatten_index_value(0))
+        }
     }
 
     fn max<'a>(&'a self) -> Option<Self::Value<'a>>
     where
         Self::Value<'a>: Ord,
     {
-        self.iter().max()
+        let size = self.size();
+        if size == 0 {
+            None
+        } else {
+            Some(self.unflatten_index_value(size - 1))
+        }
     }
 }
 

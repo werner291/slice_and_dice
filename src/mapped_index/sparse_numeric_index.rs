@@ -94,14 +94,23 @@ impl<I: Copy + 'static, T: 'static> MappedIndex for SparseNumericIndex<I, T> {
     where
         Self::Value<'a>: Ord,
     {
-        self.iter().min()
+        if self.indices.is_empty() {
+            None
+        } else {
+            Some(self.unflatten_index_value(0))
+        }
     }
 
     fn max<'a>(&'a self) -> Option<Self::Value<'a>>
     where
         Self::Value<'a>: Ord,
     {
-        self.iter().max()
+        let size = self.indices.len();
+        if size == 0 {
+            None
+        } else {
+            Some(self.unflatten_index_value(size - 1))
+        }
     }
 }
 
