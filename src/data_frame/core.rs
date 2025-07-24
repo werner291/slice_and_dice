@@ -1,7 +1,7 @@
 //! Core DataFrame struct and basic methods.
-use crate::mapped_index::MappedIndex;
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
+use crate::mapped_index::MappedIndex;
 use std::ops::Index;
 
 /// A generic DataFrame type associating an index with a data collection.
@@ -137,7 +137,7 @@ where
     }
 }
 
-/// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (i32, T).
+/// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (i64, T).
 ///
 /// # Example
 /// ```
@@ -145,13 +145,13 @@ where
 /// use slice_and_dice::mapped_index::sparse_numeric_index::SparseNumericIndex;
 /// #[derive(Debug)]
 /// struct Row;
-/// let df = [(10, "a"), (20, "b")]
+/// let df = [(10i64, "a"), (20i64, "b")]
 ///     .into_iter()
 ///     .to_sparse_numeric_dataframe::<Row>();
 /// assert_eq!(df.index, SparseNumericIndex::<Row> { indices: vec![10, 20], _phantom: std::marker::PhantomData });
 /// assert_eq!(df.data, vec!["a", "b"]);
 /// ```
-pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i32, T)> + Sized {
+pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i64, T)> + Sized {
     fn to_sparse_numeric_dataframe<Tag: 'static>(
         self,
     ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>>;
@@ -159,14 +159,13 @@ pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i32, T)> + Sized {
 
 impl<I, T> DataFrameFromSparseNumericExt<T> for I
 where
-    I: Iterator<Item = (i32, T)>,
+    I: Iterator<Item = (i64, T)>,
     T: 'static,
 {
     fn to_sparse_numeric_dataframe<Tag: 'static>(
         self,
     ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>> {
-        let (indices, data): (Vec<i32>, Vec<T>) = self.unzip();
-        let indices: Vec<i64> = indices.into_iter().map(|x| x as i64).collect();
+        let (indices, data): (Vec<i64>, Vec<T>) = self.unzip();
         DataFrame {
             index: SparseNumericIndex {
                 indices,
@@ -213,7 +212,7 @@ mod tests {
     #[test]
     fn test_from_iter_sparse_numeric() {
         use crate::data_frame::core::DataFrameFromSparseNumericExt;
-        let df = [(10, "a"), (20, "b")]
+        let df = [(10i64, "a"), (20i64, "b")]
             .into_iter()
             .to_sparse_numeric_dataframe::<Tag>();
         assert_eq!(df.index.indices, vec![10i64, 20i64]);
