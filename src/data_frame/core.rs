@@ -1,8 +1,8 @@
 //! Core DataFrame struct and basic methods.
+use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::compound_index::CompoundIndex;
 use std::ops::Index;
 
 /// A generic DataFrame type associating an index with a data collection.
@@ -304,7 +304,9 @@ mod tests {
         use crate::mapped_index::numeric_range_index::NumericRangeIndex;
         #[derive(Debug, PartialEq)]
         struct Tag;
-        let index = CompoundIndex { indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),) };
+        let index = CompoundIndex {
+            indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),),
+        };
         let df = DataFrame::new(index, vec![1, 2, 3]);
         let df2 = df.collapse_single_index();
         assert_eq!(df2.index, NumericRangeIndex::<i32, Tag>::new(0, 3));
