@@ -53,32 +53,33 @@ where
         }
     }
 
-    /// Compute the mean over the dimension specified by typenum, with a generic output type.
+    /// Compute the mean over the dimension specified by typenum.
     ///
-    /// The mean is computed as Out, which must support Zero, AddAssign, Div, FromPrimitive, and Copy.
-    pub fn mean_over_dim<N: NonNeg, Out>(
+    /// The mean is computed as the sum divided by the count (as f64), using the output of Div<f64>.
+    /// Only works for types that implement Div<f64> (e.g., f64, f32).
+    pub fn mean_over_dim<N: NonNeg>(
         self,
-    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<Out>>
+    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<<D::Output as std::ops::Div<f64>>::Output>>
     where
         Indices: TupleExtract<N>,
         <Indices as TupleExtract<N>>::Before: TupleConcat,
-        D::Output: Copy + Into<Out>,
-        Out: Zero + std::ops::AddAssign + std::ops::Div<Output = Out> + FromPrimitive + Copy,
+        D::Output: Copy + Zero + std::ops::AddAssign + std::ops::Div<f64>,
+        <D::Output as std::ops::Div<f64>>::Output: Copy,
         ExtractLeft<N, Indices>: IndexTuple,
         Extract<N, Indices>: MappedIndex,
         ExtractRemainder<N, Indices>: IndexTuple,
         ExtractRight<N, Indices>: IndexTuple,
     {
-        self.aggregate_over_dim::<N, _, Out>(|iter| {
+        self.aggregate_over_dim::<N, _, <D::Output as std::ops::Div<f64>>::Output>(|iter| {
             let n = iter.len();
             if n == 0 {
-                Out::zero()
+                panic!("mean_over_dim: cannot compute mean of zero elements");
             } else {
-                let mut sum = Out::zero();
-                for v in iter.copied().map(Into::into) {
+                let mut sum = D::Output::zero();
+                for v in iter.copied() {
                     sum += v;
                 }
-                sum / Out::from_usize(n).unwrap()
+                sum / n as f64
             }
         })
     }
@@ -116,9 +117,9 @@ mod tests {
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };
-        let data = vec![10, 20, 30, 40, 50, 60];
+        let data = vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0];
         let df = DataFrame::new(compound_index, data);
-        let mean_df = df.mean_over_dim::<P1, f64>();
+        let mean_df = df.mean_over_dim::<P1>();
         let expected_index = outer_index;
         let expected_data = vec![(10.0 + 20.0 + 30.0) / 3.0, (40.0 + 50.0 + 60.0) / 3.0];
         assert_eq!(mean_df.index.collapse_single(), expected_index);
