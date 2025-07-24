@@ -2,10 +2,8 @@
 
 use crate::mapped_index::MappedIndex;
 use crate::tuple_utils::{
-    DropFirst, First, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleFirstElement, TuplePrepend,
+    DropFirst, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleFirstElement, TuplePrepend,
 };
-use itertools::iproduct;
-use std::ops::Deref;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -88,17 +86,15 @@ impl<'a> IndexRefTuple<'a> for () {
     }
 }
 
-type RemoveRef<A: Deref> = A::Target;
-type IDRValue<'a, T: IndexRefTuple<'a>> = T::Value;
-
 impl<'a, B: NonEmptyTuple + TupleFirstElement<First = &'a T> + Copy + 'a, T: MappedIndex + 'a>
     IndexRefTuple<'a> for B
 where
-    Prepend<<T as MappedIndex>::Value<'a>, IDRValue<'a, DropFirst<B>>>: Copy
-        + TupleFirstElement<
-            First = <T as MappedIndex>::Value<'a>,
-            Rest = <DropFirst<B> as IndexRefTuple<'a>>::Value,
-        >,
+    Prepend<<T as MappedIndex>::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>:
+        Copy
+            + TupleFirstElement<
+                First = <T as MappedIndex>::Value<'a>,
+                Rest = <DropFirst<B> as IndexRefTuple<'a>>::Value,
+            >,
     DropFirst<B>: IndexRefTuple<'a>,
 {
     type Value = Prepend<T::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>;
