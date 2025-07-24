@@ -8,7 +8,7 @@ use crate::tuple_utils::{
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
 /// The flat index is computed by flattening the tuple of indices into a single dimension.
-#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompoundIndex<Indices> {
     /// The tuple of sub-indices.
     pub indices: Indices,
@@ -180,7 +180,7 @@ where
 mod tests {
     use super::*;
     use crate::mapped_index::{
-        MappedIndex, categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex,
+        categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex, MappedIndex,
     };
 
     #[derive(Debug)]

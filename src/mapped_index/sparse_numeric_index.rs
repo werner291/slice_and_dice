@@ -2,6 +2,7 @@ use super::MappedIndex;
 use std::marker::PhantomData;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct SparseNumericIndex<T> {
     pub indices: Vec<i64>,
@@ -28,6 +29,7 @@ impl<T> SparseNumericIndex<T> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct SparseNumericValue<T> {
     pub value: i64,

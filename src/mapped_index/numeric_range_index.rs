@@ -2,6 +2,7 @@ use super::MappedIndex;
 use std::marker::PhantomData;
 
 /// A value in a numeric range index, representing a position in the range.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct NumericValue<Idx, T> {
     /// The numeric index value.
@@ -25,6 +26,7 @@ impl<Idx: Copy, T> Clone for NumericValue<Idx, T> {
 }
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct NumericRangeIndex<T> {
     /// The start of the range (inclusive).
