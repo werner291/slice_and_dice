@@ -9,6 +9,7 @@ use crate::tuple_utils::{
 use itertools::Itertools;
 use peano::NonNeg;
 use std::ops::Index;
+use num_traits::{Zero, FromPrimitive};
 
 impl<Indices: IndexTuple, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
 where
@@ -52,9 +53,37 @@ where
         }
     }
 
-    /// Compute the mean over the dimension specified by typenum.
+    /// Compute the mean over the dimension specified by typenum, with a generic output type.
     ///
-    /// The mean is computed as f64, regardless of the input type.
+    /// The mean is computed as Out, which must support Zero, AddAssign, Div, From<usize>, and Copy.
+    pub fn mean_over_dim_generic<N: NonNeg, Out>(
+        self,
+    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<Out>>
+    where
+        Indices: TupleExtract<N>,
+        <Indices as TupleExtract<N>>::Before: TupleConcat,
+        D::Output: Copy + Into<Out>,
+        Out: Zero + std::ops::AddAssign + std::ops::Div<Output = Out> + FromPrimitive + Copy,
+        ExtractLeft<N, Indices>: IndexTuple,
+        Extract<N, Indices>: MappedIndex,
+        ExtractRemainder<N, Indices>: IndexTuple,
+        ExtractRight<N, Indices>: IndexTuple,
+    {
+        self.aggregate_over_dim::<N, _, Out>(|iter| {
+            let n = iter.len();
+            if n == 0 {
+                Out::zero()
+            } else {
+                let mut sum = Out::zero();
+                for v in iter.copied().map(Into::into) {
+                    sum += v;
+                }
+                sum / Out::from_usize(n).unwrap()
+            }
+        })
+    }
+
+    /// Compute the mean over the dimension specified by typenum as f64 (convenience method).
     pub fn mean_over_dim<N: NonNeg>(
         self,
     ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<f64>>
@@ -67,14 +96,7 @@ where
         ExtractRemainder<N, Indices>: IndexTuple,
         ExtractRight<N, Indices>: IndexTuple,
     {
-        self.aggregate_over_dim::<N, _, f64>(|iter| {
-            let n = iter.len();
-            if n == 0 {
-                f64::NAN
-            } else {
-                iter.copied().map(Into::into).sum::<f64>() / n as f64
-            }
-        })
+        self.mean_over_dim_generic::<N, f64>()
     }
 }
 
