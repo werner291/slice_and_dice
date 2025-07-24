@@ -2,8 +2,10 @@
 //!
 //! Provides `TupleConcat` for combining two tuples into one.
 
-use crate::tuple_utils::{Tuple, TupleFirstElement, TuplePrepend, DropFirst, First};
-use crate::tuple_utils::aliases::Prepend;
+use crate::tuple_utils::core::Tuple;
+use crate::tuple_utils::first_last::TupleFirstElement;
+use crate::tuple_utils::prepend_append::TuplePrepend;
+use crate::tuple_utils::aliases::{DropFirst, First, Prepend};
 
 /// Trait for concatenating two tuples.
 pub trait TupleConcat {

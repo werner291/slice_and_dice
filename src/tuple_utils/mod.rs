@@ -15,10 +15,10 @@ pub mod extract;
 pub mod concat;
 pub mod aliases;
 
-pub use core::*;
-pub use first_last::*;
-pub use prepend_append::*;
-pub use as_refs::*;
-pub use extract::*;
-pub use concat::*;
-pub use aliases::*; 
+pub use crate::tuple_utils::core::*;
+pub use crate::tuple_utils::first_last::*;
+pub use crate::tuple_utils::prepend_append::*;
+pub use crate::tuple_utils::as_refs::*;
+pub use crate::tuple_utils::extract::*;
+pub use crate::tuple_utils::concat::*;
+pub use crate::tuple_utils::aliases::*; 

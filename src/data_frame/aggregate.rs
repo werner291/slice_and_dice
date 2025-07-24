@@ -3,7 +3,7 @@ use super::core::DataFrame;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::MappedIndex;
 use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple, IndexTuple};
-use crate::mapped_index::tuple_utils::{
+use crate::tuple_utils::{
     Extract, ExtractAt, ExtractLeft, ExtractRemainder, ExtractRight, TupleConcat, TupleExtract,
 };
 use itertools::Itertools;

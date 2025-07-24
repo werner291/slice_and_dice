@@ -2,7 +2,9 @@
 //!
 //! Provides the `Tuple` and `NonEmptyTuple` marker traits, and the `TooBig` type for compile-time bounds.
 use peano::{NonNeg, Succ, Zero};
-use crate::tuple_utils::{TupleAppend, TuplePrepend, TupleConcat, TupleFirstElement};
+use crate::tuple_utils::prepend_append::{TupleAppend, TuplePrepend};
+use crate::tuple_utils::concat::TupleConcat;
+use crate::tuple_utils::first_last::TupleFirstElement;
 
 /// A placeholder dummy type for "a tuple that is too big"
 pub struct TooBig;

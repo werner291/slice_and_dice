@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::mapped_index::MappedIndex;
-use crate::mapped_index::tuple_utils::{
+use crate::tuple_utils::{
     DropFirst, First, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleFirstElement, TuplePrepend,
 };
 use itertools::iproduct;
