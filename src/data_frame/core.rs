@@ -138,7 +138,7 @@ where
     }
 }
 
-/// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (i64, T).
+/// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (I, T).
 ///
 /// # Example
 /// ```
@@ -149,24 +149,29 @@ where
 /// let df = [(10i64, "a"), (20i64, "b")]
 ///     .into_iter()
 ///     .to_sparse_numeric_dataframe::<Row>();
-/// assert_eq!(df.index, SparseNumericIndex::<Row> { indices: vec![10, 20], _phantom: std::marker::PhantomData });
+/// assert_eq!(df.index.indices, vec![10, 20]);
 /// assert_eq!(df.data, vec!["a", "b"]);
 /// ```
-pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i64, T)> + Sized {
-    fn to_sparse_numeric_dataframe<Tag: 'static>(
-        self,
-    ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>>;
-}
-
-impl<I, T> DataFrameFromSparseNumericExt<T> for I
+pub trait DataFrameFromSparseNumericExt<I, T>: Iterator<Item = (I, T)> + Sized
 where
-    I: Iterator<Item = (i64, T)>,
+    I: Copy + PartialOrd + 'static,
     T: 'static,
 {
     fn to_sparse_numeric_dataframe<Tag: 'static>(
         self,
-    ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>> {
-        let (indices, data): (Vec<i64>, Vec<T>) = self.unzip();
+    ) -> DataFrame<SparseNumericIndex<I, Tag>, Vec<T>>;
+}
+
+impl<Itr, I, T> DataFrameFromSparseNumericExt<I, T> for Itr
+where
+    Itr: Iterator<Item = (I, T)>,
+    I: Copy + PartialOrd + 'static,
+    T: 'static,
+{
+    fn to_sparse_numeric_dataframe<Tag: 'static>(
+        self,
+    ) -> DataFrame<SparseNumericIndex<I, Tag>, Vec<T>> {
+        let (indices, data): (Vec<I>, Vec<T>) = self.unzip();
         DataFrame {
             index: SparseNumericIndex {
                 indices,
