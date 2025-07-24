@@ -8,6 +8,22 @@ use std::ops::Index;
 ///
 /// The index must implement MappedIndex, and the data must be indexable by usize (e.g., Vec).
 /// This allows efficient access to data by index value or flat index.
+///
+/// # Example
+/// ```
+/// use slice_and_dice::data_frame::core::DataFrame;
+/// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+/// // Tag type to mark the index dimension
+/// #[derive(Debug)]
+/// struct Row;
+/// let index = NumericRangeIndex::<Row>::new(0, 3);
+/// let data = vec![10, 20, 30];
+/// let df = DataFrame::new(index.clone(), data.clone());
+/// assert_eq!(df.index, index);
+/// assert_eq!(df.data, data);
+/// assert_eq!(*df.get(NumericValue::new(1)), 20);
+/// assert_eq!(*df.get_flat(2), 30);
+/// ```
 pub struct DataFrame<I, D>
 where
     I: MappedIndex,
@@ -25,37 +41,78 @@ where
     D: Index<usize>,
 {
     /// Construct a new DataFrame from index and data.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// // Tag type to mark the index dimension
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let data = vec![10, 20, 30];
+    /// let df = DataFrame::new(index.clone(), data.clone());
+    /// assert_eq!(df.index, index);
+    /// assert_eq!(df.data, data);
+    /// ```
     pub fn new(index: I, data: D) -> Self {
         Self { index, data }
     }
 
     /// Get a reference to the data for a given index value.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// // Tag type to mark the index dimension
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let data = vec![10, 20, 30];
+    /// let df = DataFrame::new(index, data);
+    /// assert_eq!(*df.get(NumericValue::new(1)), 20);
+    /// ```
     pub fn get<'a>(&'a self, value: I::Value<'a>) -> &'a D::Output {
         &self.data[self.index.flatten_index_value(value)]
     }
 
     /// Get a reference to the data for a given flat index.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// // Tag type to mark the index dimension
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let index = NumericRangeIndex::<Row>::new(0, 3);
+    /// let data = vec![10, 20, 30];
+    /// let df = DataFrame::new(index, data);
+    /// assert_eq!(*df.get_flat(2), 30);
+    /// ```
     pub fn get_flat(&self, flat_index: usize) -> &D::Output {
         &self.data[flat_index]
     }
 }
 
-impl<T: 'static> DataFrame<NumericRangeIndex<T>, Vec<T>> {
-    /// Constructs a DataFrame from an iterator of values, using a numeric index (0..N).
-    ///
-    /// # Example
-    /// ```
-    /// use slice_and_dice::data_frame::core::DataFrame;
-    /// let df = DataFrame::from_iter_numeric([1, 2, 3]);
-    /// assert_eq!(df.index.start, 0);
-    /// assert_eq!(df.index.end, 3);
-    /// assert_eq!(df.data, vec![1, 2, 3]);
-    /// ```
-    pub fn from_iter_numeric<I>(iter: I) -> Self
+/// Extension trait for creating a DataFrame with a NumericRangeIndex from an iterator.
+pub trait DataFrameFromNumericExt: Sized {
+    fn to_numeric_dataframe<Tag: 'static>(
+        self,
+    ) -> DataFrame<NumericRangeIndex<Tag>, Vec<Self::Item>>
     where
-        I: IntoIterator<Item = T>,
-    {
-        let data: Vec<T> = iter.into_iter().collect();
+        Self: Iterator,
+        Self::Item: 'static;
+}
+
+impl<I> DataFrameFromNumericExt for I
+where
+    I: Iterator,
+    I::Item: 'static,
+{
+    fn to_numeric_dataframe<Tag: 'static>(self) -> DataFrame<NumericRangeIndex<Tag>, Vec<I::Item>> {
+        let data: Vec<I::Item> = self.collect();
         let len = data.len() as i32;
         DataFrame {
             index: NumericRangeIndex {
@@ -68,21 +125,22 @@ impl<T: 'static> DataFrame<NumericRangeIndex<T>, Vec<T>> {
     }
 }
 
-impl<T: 'static> DataFrame<SparseNumericIndex<T>, Vec<T>> {
-    /// Constructs a DataFrame from an iterator of (i32, value) pairs, using a sparse numeric index.
-    ///
-    /// # Example
-    /// ```
-    /// use slice_and_dice::data_frame::core::DataFrame;
-    /// let df = DataFrame::from_iter_sparse_numeric([(10, "a"), (20, "b")]);
-    /// assert_eq!(df.index.indices, vec![10, 20]);
-    /// assert_eq!(df.data, vec!["a", "b"]);
-    /// ```
-    pub fn from_iter_sparse_numeric<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = (i32, T)>,
-    {
-        let (indices, data): (Vec<i32>, Vec<T>) = iter.into_iter().unzip();
+/// Extension trait for creating a DataFrame with a SparseNumericIndex from an iterator of (i32, T).
+pub trait DataFrameFromSparseNumericExt<T>: Iterator<Item = (i32, T)> + Sized {
+    fn to_sparse_numeric_dataframe<Tag: 'static>(
+        self,
+    ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>>;
+}
+
+impl<I, T> DataFrameFromSparseNumericExt<T> for I
+where
+    I: Iterator<Item = (i32, T)>,
+    T: 'static,
+{
+    fn to_sparse_numeric_dataframe<Tag: 'static>(
+        self,
+    ) -> DataFrame<SparseNumericIndex<Tag>, Vec<T>> {
+        let (indices, data): (Vec<i32>, Vec<T>) = self.unzip();
         let indices: Vec<i64> = indices.into_iter().map(|x| x as i64).collect();
         DataFrame {
             index: SparseNumericIndex {
@@ -102,30 +160,7 @@ mod tests {
     #[derive(Debug)]
     struct Tag;
 
-    #[test]
-    fn test_new() {
-        let index = NumericRangeIndex::<Tag>::new(0, 3);
-        let data = vec![10, 20, 30];
-        let df = DataFrame::new(index.clone(), data.clone());
-        assert_eq!(df.index, index);
-        assert_eq!(df.data, data);
-    }
-
-    #[test]
-    fn test_get() {
-        let index = NumericRangeIndex::<Tag>::new(0, 3);
-        let data = vec![10, 20, 30];
-        let df = DataFrame::new(index, data);
-        assert_eq!(*df.get(NumericValue::new(1)), 20);
-    }
-
-    #[test]
-    fn test_get_flat() {
-        let index = NumericRangeIndex::<Tag>::new(0, 3);
-        let data = vec![10, 20, 30];
-        let df = DataFrame::new(index, data);
-        assert_eq!(*df.get_flat(2), 30);
-    }
+    // Removed test_new, test_get, test_get_flat (now doctests)
 
     #[test]
     fn test_nonzero_start_index() {
@@ -143,7 +178,8 @@ mod tests {
 
     #[test]
     fn test_from_iter_numeric() {
-        let df = DataFrame::from_iter_numeric(0..5);
+        use crate::data_frame::core::DataFrameFromNumericExt;
+        let df = (0..5).to_numeric_dataframe::<Tag>();
         assert_eq!(df.index.start, 0);
         assert_eq!(df.index.end, 5);
         assert_eq!(df.data, vec![0, 1, 2, 3, 4]);
@@ -151,7 +187,10 @@ mod tests {
 
     #[test]
     fn test_from_iter_sparse_numeric() {
-        let df = DataFrame::from_iter_sparse_numeric([(10, "a"), (20, "b")]);
+        use crate::data_frame::core::DataFrameFromSparseNumericExt;
+        let df = [(10, "a"), (20, "b")]
+            .into_iter()
+            .to_sparse_numeric_dataframe::<Tag>();
         assert_eq!(df.index.indices, vec![10i64, 20i64]);
         assert_eq!(df.data, vec!["a", "b"]);
     }
