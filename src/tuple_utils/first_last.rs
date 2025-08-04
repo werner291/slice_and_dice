@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! Traits for accessing the first and last elements of tuples.
 //!
 //! Provides `TupleFirstElement` and `TupleLastElement` for splitting tuples at the ends.
@@ -105,4 +106,4 @@ mod tests {
         assert_eq!(rest, (1, 2));
         assert_eq!(last, 3);
     }
-} 
+}

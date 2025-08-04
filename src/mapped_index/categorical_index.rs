@@ -83,20 +83,6 @@ impl<T: Copy, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
     fn size(&self) -> usize {
         self.values.len()
     }
-
-    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        self.iter().min()
-    }
-
-    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        self.iter().max()
-    }
 }
 
 impl<T: Copy, Tag> CategoricalIndex<T, Tag> {

@@ -7,9 +7,9 @@ use crate::tuple_utils::{
     Extract, ExtractAt, ExtractLeft, ExtractRemainder, ExtractRight, TupleConcat, TupleExtract,
 };
 use itertools::Itertools;
+use num_traits::{FromPrimitive, Zero};
 use peano::NonNeg;
 use std::ops::Index;
-use num_traits::{Zero, FromPrimitive};
 
 impl<Indices: IndexTuple, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
 where
@@ -59,7 +59,10 @@ where
     /// Only works for types that implement Div<f64> (e.g., f64, f32).
     pub fn mean_over_dim<N: NonNeg>(
         self,
-    ) -> DataFrame<CompoundIndex<ExtractRemainder<N, Indices>>, Vec<<D::Output as std::ops::Div<f64>>::Output>>
+    ) -> DataFrame<
+        CompoundIndex<ExtractRemainder<N, Indices>>,
+        Vec<<D::Output as std::ops::Div<f64>>::Output>,
+    >
     where
         Indices: TupleExtract<N>,
         <Indices as TupleExtract<N>>::Before: TupleConcat,

@@ -2,7 +2,8 @@
 
 use crate::mapped_index::MappedIndex;
 use crate::tuple_utils::{
-    DropFirst, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleFirstElement, TuplePrepend,
+    DropFirst, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleCollectOption, TupleFirstElement,
+    TuplePrepend,
 };
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
@@ -38,26 +39,16 @@ pub trait IndexRefTuple<'a>: Tuple + Copy {
 
     fn size(self) -> usize;
 }
-//
-// impl<'a, A: MappedIndex + 'a> IndexRefTuple<'a> for (&'a A,) {
-//     type Value = A::Value<'a>;
-//
-//     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-//         self.iter()
-//     }
-//
-//     fn flatten_index_value(self, v: Self::Value) -> usize {
-//         self.flatten_index_value(v)
-//     }
-//
-//     fn unflatten_index_value(self, index: usize) -> Self::Value {
-//         self.unflatten_index_value(index)
-//     }
-//
-//     fn size(self) -> usize {
-//         self.size()
-//     }
-// }
+
+pub trait IndexRefTupleMinMax<'a>: IndexRefTuple<'a> {
+    fn min(self) -> Option<Self::Value>
+    where
+        Self::Value: Ord;
+
+    fn max(self) -> Option<Self::Value>
+    where
+        Self::Value: Ord;
+}
 
 impl<'a> IndexRefTuple<'a> for () {
     type Value = ();
@@ -166,23 +157,6 @@ where
 
     fn size(&self) -> usize {
         self.indices.as_ref_tuple().size()
-    }
-
-    /// Lexicographic min (using iterator)
-    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        // Tuple recursion for min is not available; use iterator (lexicographic)
-        self.iter().min()
-    }
-
-    /// Lexicographic max (using iterator)
-    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        self.iter().max()
     }
 }
 

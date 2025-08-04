@@ -2,11 +2,10 @@
 //!
 //! Provides `TupleExtract` and `ExtractAt` for type-safe, generic extraction of tuple elements.
 
-use peano::{NonNeg, Succ, Zero};
 use crate::tuple_utils::core::Tuple;
 use crate::tuple_utils::first_last::TupleFirstElement;
 use crate::tuple_utils::prepend_append::{TupleAppend, TuplePrepend};
-use crate::tuple_utils::aliases::DropFirst;
+use peano::{NonNeg, Succ, Zero};
 
 /// Trait for extracting a given member of a tuple using type-level numbers.
 pub trait TupleExtract<N: NonNeg> {
@@ -85,4 +84,4 @@ mod tests {
         let (_, extracted, _) = tuple.extract_at::<P3>();
         assert_eq!(extracted, true);
     }
-} 
+}

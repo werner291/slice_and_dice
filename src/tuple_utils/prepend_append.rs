@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! Traits for prepending and appending elements to tuples.
 //!
 //! Provides `TuplePrepend` and `TupleAppend` for constructing new tuples by adding elements at the start or end.
@@ -37,7 +38,9 @@ impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7);
 impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7, T8);
 impl_tuple_prepend!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
 
-impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TuplePrepend for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) {
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TuplePrepend
+    for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
+{
     type PrependedTuple<A> = super::core::TooBig;
     fn prepend<A>(self, _head: A) -> Self::PrependedTuple<A> {
         unimplemented!()
@@ -78,7 +81,9 @@ impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7);
 impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7, T8);
 impl_tuple_append!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
 
-impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TupleAppend for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) {
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> TupleAppend
+    for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
+{
     type AppendedTuple<A> = super::core::TooBig;
     fn append<A>(self, _tail: A) -> Self::AppendedTuple<A> {
         unimplemented!()
@@ -106,4 +111,4 @@ mod tests {
         let t3 = t2.append(3);
         assert_eq!(t3, (1, 2, 3));
     }
-} 
+}

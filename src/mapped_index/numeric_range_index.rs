@@ -139,29 +139,6 @@ where
         let end: usize = self.end.try_into().unwrap();
         end - start
     }
-
-    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        if self.size() == 0 {
-            None
-        } else {
-            Some(self.unflatten_index_value(0))
-        }
-    }
-
-    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord,
-    {
-        let size = self.size();
-        if size == 0 {
-            None
-        } else {
-            Some(self.unflatten_index_value(size - 1))
-        }
-    }
 }
 
 impl<I: Copy + std::fmt::Debug + 'static, T: 'static> std::ops::Index<I>

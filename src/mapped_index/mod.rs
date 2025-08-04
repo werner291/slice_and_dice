@@ -3,6 +3,7 @@
 pub mod categorical_index;
 pub mod compound_index;
 pub mod numeric_range_index;
+pub mod singleton_index;
 pub mod sparse_numeric_index;
 
 /// A trait for types that provide a mapping between a flat numeric index and a value.
@@ -37,14 +38,4 @@ pub trait MappedIndex {
 
     /// Returns the total number of values in the index.
     fn size(&self) -> usize;
-
-    /// Returns the minimum value in the index, if any (requires Ord).
-    fn min<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord;
-
-    /// Returns the maximum value in the index, if any (requires Ord).
-    fn max<'a>(&'a self) -> Option<Self::Value<'a>>
-    where
-        Self::Value<'a>: Ord;
 }

@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! Trait for converting tuples to tuples of references.
 //!
 //! Provides `TupleAsRefs` for obtaining a tuple of references from a tuple of values.
@@ -11,13 +12,23 @@ pub trait TupleAsRefs {
 }
 
 impl<'a> TupleAsRefs for () {
-    type AsTupleOfRefs<'b> = () where Self: 'b;
-    fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> { () }
+    type AsTupleOfRefs<'b>
+        = ()
+    where
+        Self: 'b;
+    fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> {
+        ()
+    }
 }
 
 impl<A> TupleAsRefs for (A,) {
-    type AsTupleOfRefs<'a> = (&'a A,) where Self: 'a;
-    fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> { (&self.0,) }
+    type AsTupleOfRefs<'a>
+        = (&'a A,)
+    where
+        Self: 'a;
+    fn as_tuple_of_refs(&self) -> Self::AsTupleOfRefs<'_> {
+        (&self.0,)
+    }
 }
 
 macro_rules! impl_tuple_as_refs_tuple {
@@ -59,4 +70,4 @@ mod tests {
         assert_eq!(*refs.1, 2);
         assert_eq!(*refs.2, 3);
     }
-} 
+}

@@ -1,10 +1,9 @@
 //! Core tuple marker traits and types for generic tuple manipulation.
 //!
 //! Provides the `Tuple` and `NonEmptyTuple` marker traits, and the `TooBig` type for compile-time bounds.
-use peano::{NonNeg, Succ, Zero};
-use crate::tuple_utils::prepend_append::{TupleAppend, TuplePrepend};
 use crate::tuple_utils::concat::TupleConcat;
 use crate::tuple_utils::first_last::TupleFirstElement;
+use crate::tuple_utils::prepend_append::{TupleAppend, TuplePrepend};
 
 /// A placeholder dummy type for "a tuple that is too big"
 pub struct TooBig;
@@ -33,16 +32,22 @@ impl Tuple for TooBig {}
 // Implementations for TooBig to satisfy trait bounds
 impl crate::tuple_utils::prepend_append::TupleAppend for TooBig {
     type AppendedTuple<A> = TooBig;
-    fn append<A>(self, _tail: A) -> Self::AppendedTuple<A> { unimplemented!() }
+    fn append<A>(self, _tail: A) -> Self::AppendedTuple<A> {
+        unimplemented!()
+    }
 }
 impl crate::tuple_utils::prepend_append::TuplePrepend for TooBig {
     type PrependedTuple<A> = TooBig;
-    fn prepend<A>(self, _head: A) -> Self::PrependedTuple<A> { unimplemented!() }
+    fn prepend<A>(self, _head: A) -> Self::PrependedTuple<A> {
+        unimplemented!()
+    }
 }
 impl crate::tuple_utils::first_last::TupleFirstElement for TooBig {
     type First = TooBig;
     type Rest = ();
-    fn split_first(self) -> (Self::First, Self::Rest) { unimplemented!() }
+    fn split_first(self) -> (Self::First, Self::Rest) {
+        unimplemented!()
+    }
 }
 
 /// Marker trait for non-empty tuples.
@@ -65,6 +70,51 @@ macro_rules! impl_non_empty_tuple {
 // Generate implementations for non-empty tuples of size 1 and up
 impl_non_empty_tuple!((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10));
 
+/// Trait to collect a tuple of Option<T> into an Option<tuple of T>.
+pub trait TupleCollectOption {
+    type Output;
+    fn collect_option(self) -> Option<Self::Output>;
+}
+
+impl TupleCollectOption for () {
+    type Output = ();
+    fn collect_option(self) -> Option<Self::Output> {
+        Some(())
+    }
+}
+
+impl<A> TupleCollectOption for (Option<A>,) {
+    type Output = (A,);
+    fn collect_option(self) -> Option<Self::Output> {
+        let (a,) = self;
+        Some((a?,))
+    }
+}
+
+impl<A, B> TupleCollectOption for (Option<A>, Option<B>) {
+    type Output = (A, B);
+    fn collect_option(self) -> Option<Self::Output> {
+        let (a, b) = self;
+        Some((a?, b?))
+    }
+}
+
+impl<A, B, C> TupleCollectOption for (Option<A>, Option<B>, Option<C>) {
+    type Output = (A, B, C);
+    fn collect_option(self) -> Option<Self::Output> {
+        let (a, b, c) = self;
+        Some((a?, b?, c?))
+    }
+}
+
+impl<A, B, C, D> TupleCollectOption for (Option<A>, Option<B>, Option<C>, Option<D>) {
+    type Output = (A, B, C, D);
+    fn collect_option(self) -> Option<Self::Output> {
+        let (a, b, c, d) = self;
+        Some((a?, b?, c?, d?))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,4 +127,4 @@ mod tests {
         assert_non_empty::<(i32,)>();
         assert_non_empty::<(i32, f64)>();
     }
-} 
+}

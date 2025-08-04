@@ -9,4 +9,4 @@ pub type Concat<Left, Right> = <Left as crate::tuple_utils::TupleConcat>::Concat
 pub type Extract<N, T> = <T as crate::tuple_utils::TupleExtract<N>>::Result;
 pub type ExtractLeft<N, T> = <T as crate::tuple_utils::TupleExtract<N>>::Before;
 pub type ExtractRight<N, T> = <T as crate::tuple_utils::TupleExtract<N>>::After;
-pub type ExtractRemainder<N, T> = Concat<ExtractLeft<N, T>, ExtractRight<N, T>>; 
+pub type ExtractRemainder<N, T> = Concat<ExtractLeft<N, T>, ExtractRight<N, T>>;

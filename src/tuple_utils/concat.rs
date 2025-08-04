@@ -2,10 +2,10 @@
 //!
 //! Provides `TupleConcat` for combining two tuples into one.
 
+use crate::tuple_utils::aliases::{DropFirst, First, Prepend};
 use crate::tuple_utils::core::Tuple;
 use crate::tuple_utils::first_last::TupleFirstElement;
 use crate::tuple_utils::prepend_append::TuplePrepend;
-use crate::tuple_utils::aliases::{DropFirst, First, Prepend};
 
 /// Trait for concatenating two tuples.
 pub trait TupleConcat {
@@ -26,7 +26,8 @@ where
     Left: TupleFirstElement,
     DropFirst<Left>: TupleConcat,
 {
-    type ConcatenatedTuple<Right: Tuple> = Prepend<First<Self>, <DropFirst<Self> as TupleConcat>::ConcatenatedTuple<Right>>;
+    type ConcatenatedTuple<Right: Tuple> =
+        Prepend<First<Self>, <DropFirst<Self> as TupleConcat>::ConcatenatedTuple<Right>>;
     fn concat<Right: Tuple>(self, other: Right) -> Self::ConcatenatedTuple<Right>
     where
         <DropFirst<Left> as TupleConcat>::ConcatenatedTuple<Right>: TuplePrepend,
@@ -60,4 +61,4 @@ mod tests {
         let result = t1.concat(t2);
         assert_eq!(result, (1, "hello", true, 3.14));
     }
-} 
+}
