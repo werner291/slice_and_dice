@@ -1,25 +1,23 @@
 use super::MappedIndex;
-use std::marker::PhantomData;
 
 /// A value in a singleton index, representing the single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct SingletonValue<T: std::fmt::Debug> {
-    /// The phantom data for type T.
-    _phantom: PhantomData<T>,
+pub struct SingletonValue<T> {
+    /// The value of type T.
+    pub value: T,
 }
 
-impl<T: std::fmt::Debug> PartialEq for SingletonValue<T> {
-    fn eq(&self, _other: &Self) -> bool {
-        // There's only one possible value, so all SingletonValues are equal
-        true
+impl<T: PartialEq> PartialEq for SingletonValue<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
     }
 }
 
-impl<T: std::fmt::Debug> Eq for SingletonValue<T> {}
+impl<T: Eq> Eq for SingletonValue<T> {}
 
-impl<T: std::fmt::Debug> Copy for SingletonValue<T> {}
-impl<T: std::fmt::Debug> Clone for SingletonValue<T> {
+impl<T: Copy> Copy for SingletonValue<T> {}
+impl<T: Copy> Clone for SingletonValue<T> {
     fn clone(&self) -> Self {
         *self
     }
@@ -28,51 +26,51 @@ impl<T: std::fmt::Debug> Clone for SingletonValue<T> {
 /// An index representing a single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct SingletonIndex<T: std::fmt::Debug> {
-    /// The phantom data for type T.
-    _phantom: PhantomData<T>,
+pub struct SingletonIndex<T> {
+    /// The value of type T.
+    pub value: T,
 }
 
-impl<T: std::fmt::Debug> Clone for SingletonIndex<T> {
+impl<T: Clone> Clone for SingletonIndex<T> {
     fn clone(&self) -> Self {
         Self {
-            _phantom: PhantomData,
+            value: self.value.clone(),
         }
     }
 }
 
-impl<T: std::fmt::Debug> PartialEq for SingletonIndex<T> {
-    fn eq(&self, _other: &Self) -> bool {
-        // All SingletonIndex instances are equal
-        true
+impl<T: PartialEq> PartialEq for SingletonIndex<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
     }
 }
 
-impl<T: std::fmt::Debug> Eq for SingletonIndex<T> {}
+impl<T: Eq> Eq for SingletonIndex<T> {}
 
-impl<T: std::fmt::Debug> SingletonIndex<T> {
-    /// Create a new SingletonIndex.
-    pub fn new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
+impl<T: Clone> SingletonIndex<T> {
+    /// Create a new SingletonIndex with the given value.
+    pub fn new(value: T) -> Self {
+        Self { value }
     }
 
     /// Returns the singleton value.
     pub fn value(&self) -> SingletonValue<T> {
         SingletonValue {
-            _phantom: PhantomData,
+            value: self.value.clone(),
         }
     }
 }
 
-impl<T: std::fmt::Debug + 'static> MappedIndex for SingletonIndex<T> {
-    type Value<'a> = SingletonValue<T>;
+impl<T: Copy + 'static> MappedIndex for SingletonIndex<T> {
+    type Value<'a>
+        = SingletonValue<T>
+    where
+        T: 'a;
 
     /// Returns an iterator over the single value in the index.
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
         std::iter::once(SingletonValue {
-            _phantom: PhantomData,
+            value: self.value.clone(),
         })
     }
 
@@ -88,7 +86,7 @@ impl<T: std::fmt::Debug + 'static> MappedIndex for SingletonIndex<T> {
             panic!("Index out of bounds: {} (expected 0)", index);
         }
         SingletonValue {
-            _phantom: PhantomData,
+            value: self.value.clone(),
         }
     }
 
@@ -105,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_singleton_index() {
-        let index = SingletonIndex::<()>::new();
+        let index = SingletonIndex::<()>::new(());
         assert_eq!(index.size(), 1);
 
         let value = index.value();
@@ -119,7 +117,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Index out of bounds: 1 (expected 0)")]
     fn test_out_of_bounds() {
-        let index = SingletonIndex::<()>::new();
+        let index = SingletonIndex::<()>::new(());
         index.unflatten_index_value(1); // Should panic
     }
 }

@@ -2,6 +2,7 @@
 
 pub mod categorical_index;
 pub mod compound_index;
+pub mod fn_map_index;
 pub mod numeric_range_index;
 pub mod singleton_index;
 pub mod sparse_numeric_index;
