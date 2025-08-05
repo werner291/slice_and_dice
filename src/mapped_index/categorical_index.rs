@@ -33,6 +33,13 @@ pub struct CategoricalIndex<T, Tag> {
     pub _phantom: PhantomData<Tag>,
 }
 
+/// An index for categorical values, mapping indices to values of type `T` using a slice.
+pub struct SliceCategoricalIndex<'a, T, Tag> {
+    /// The values stored in the index.
+    pub values: &'a [T],
+    pub _phantom: PhantomData<Tag>,
+}
+
 impl<T: Clone, Tag> Clone for CategoricalIndex<T, Tag> {
     fn clone(&self) -> Self {
         Self {
@@ -47,6 +54,58 @@ impl<T: Eq, Tag: 'static> Eq for CategoricalIndex<T, Tag> {}
 impl<T: PartialEq, Tag: 'static> PartialEq<Self> for CategoricalIndex<T, Tag> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
+    }
+}
+
+impl<'a, T: Clone, Tag> Clone for SliceCategoricalIndex<'a, T, Tag> {
+    fn clone(&self) -> Self {
+        Self {
+            values: self.values,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Eq, Tag: 'static> Eq for SliceCategoricalIndex<'a, T, Tag> {}
+
+impl<'a, T: PartialEq, Tag: 'static> PartialEq<Self> for SliceCategoricalIndex<'a, T, Tag> {
+    fn eq(&self, other: &Self) -> bool {
+        self.values == other.values
+    }
+}
+
+impl<'a, T: Copy + 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T, Tag> {
+    type Value<'b>
+        = CategoricalValue<'b, T, Tag>
+    where
+        Self: 'b;
+
+    /// Returns an iterator over all categorical values in the index.
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.values
+            .iter()
+            .enumerate()
+            .map(move |(index, v)| CategoricalValue {
+                value: v,
+                index,
+                _phantom: PhantomData,
+            })
+    }
+    /// Returns the flat index for a categorical value (its position).
+    fn flatten_index_value<'b>(&'b self, value: Self::Value<'b>) -> usize {
+        value.index
+    }
+    /// Returns the categorical value for a given flat index.
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        CategoricalValue {
+            value: &self.values[index],
+            index,
+            _phantom: PhantomData,
+        }
+    }
+    /// Returns the number of values in the categorical index.
+    fn size(&self) -> usize {
+        self.values.len()
     }
 }
 
@@ -99,6 +158,20 @@ impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
     }
 }
 
+impl<'a, T: Copy, Tag> SliceCategoricalIndex<'a, T, Tag> {
+    /// Create a new SliceCategoricalIndex from a slice of values.
+    pub fn new(values: &'a [T]) -> Self {
+        Self {
+            values,
+            _phantom: PhantomData,
+        }
+    }
+    /// Returns a reference to the value at the given categorical value.
+    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
+        &self.values[cat_value.index]
+    }
+}
+
 impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
     /// Create a new CategoricalValue from a reference and index.
     pub fn new(value: &'idx T, index: usize) -> Self {
@@ -128,5 +201,28 @@ mod tests {
         let round = index.unflatten_index_value(flat);
         assert_eq!(cat_val.index, round.index);
         assert_eq!(*cat_val.value, *round.value);
+    }
+
+    #[test]
+    fn test_slice_flat_index_round_trip() {
+        let values = [1, 2, 3];
+        let index = SliceCategoricalIndex {
+            values: &values,
+            _phantom: PhantomData::<Tag>,
+        };
+        let cat_val = index.unflatten_index_value(2);
+        let flat = index.flatten_index_value(cat_val);
+        let round = index.unflatten_index_value(flat);
+        assert_eq!(cat_val.index, round.index);
+        assert_eq!(*cat_val.value, *round.value);
+    }
+
+    #[test]
+    fn test_slice_constructor() {
+        let values = [1, 2, 3];
+        let index: SliceCategoricalIndex<_, Tag> = SliceCategoricalIndex::new(&values);
+        assert_eq!(index.size(), 3);
+        let cat_val = index.unflatten_index_value(1);
+        assert_eq!(*cat_val.value, 2);
     }
 }
