@@ -27,6 +27,7 @@ impl<'a, T: PartialEq, Tag> PartialEq for CategoricalValue<'a, T, Tag> {
 impl<'a, T: Eq, Tag> Eq for CategoricalValue<'a, T, Tag> {}
 
 /// An index for categorical values, mapping indices to values of type `T`.
+#[derive(Debug)]
 pub struct CategoricalIndex<T, Tag> {
     /// The values stored in the index.
     pub values: Vec<T>,
@@ -34,6 +35,7 @@ pub struct CategoricalIndex<T, Tag> {
 }
 
 /// An index for categorical values, mapping indices to values of type `T` using a slice.
+#[derive(Debug)]
 pub struct SliceCategoricalIndex<'a, T, Tag> {
     /// The values stored in the index.
     pub values: &'a [T],
