@@ -1,28 +1,5 @@
 use super::MappedIndex;
 
-/// A value in a singleton index, representing the single value.
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
-pub struct SingletonValue<T> {
-    /// The value of type T.
-    pub value: T,
-}
-
-impl<T: PartialEq> PartialEq for SingletonValue<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
-
-impl<T: Eq> Eq for SingletonValue<T> {}
-
-impl<T: Copy> Copy for SingletonValue<T> {}
-impl<T: Copy> Clone for SingletonValue<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
 /// An index representing a single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
@@ -54,24 +31,20 @@ impl<T: Clone> SingletonIndex<T> {
     }
 
     /// Returns the singleton value.
-    pub fn value(&self) -> SingletonValue<T> {
-        SingletonValue {
-            value: self.value.clone(),
-        }
+    pub fn value(&self) -> &T {
+        &self.value
     }
 }
 
 impl<T: Copy + 'static> MappedIndex for SingletonIndex<T> {
     type Value<'a>
-        = SingletonValue<T>
+        = &'a T
     where
         T: 'a;
 
     /// Returns an iterator over the single value in the index.
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        std::iter::once(SingletonValue {
-            value: self.value.clone(),
-        })
+        std::iter::once(&self.value)
     }
 
     /// Returns the flat index for the singleton value (always 0).
@@ -85,9 +58,7 @@ impl<T: Copy + 'static> MappedIndex for SingletonIndex<T> {
         if index != 0 {
             panic!("Index out of bounds: {} (expected 0)", index);
         }
-        SingletonValue {
-            value: self.value.clone(),
-        }
+        &self.value
     }
 
     /// Returns the number of values in the singleton index (always 1).
