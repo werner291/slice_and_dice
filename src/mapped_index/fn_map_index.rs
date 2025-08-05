@@ -6,14 +6,17 @@ use std::marker::PhantomData;
 /// This struct holds the flat index in the underlying index and the mapped value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct FnMapValue<O: Copy + std::fmt::Debug> {
+pub struct FnMapValue<O> {
     /// The flat index in the underlying index.
     pub flat_index: usize,
     /// The mapped value.
     pub mapped: O,
 }
 
-impl<O: Copy + std::fmt::Debug> FnMapValue<O> {
+impl<O> FnMapValue<O>
+where
+    O: Copy + std::fmt::Debug,
+{
     /// Create a new FnMapValue with the given flat index and mapped value.
     pub const fn new(flat_index: usize, mapped: O) -> Self {
         Self { flat_index, mapped }
@@ -27,12 +30,7 @@ impl<O: Copy + std::fmt::Debug> FnMapValue<O> {
 /// frequently during index operations.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct FnMapIndex<I, F, O>
-where
-    I: MappedIndex,
-    F: Fn(I::Value<'_>) -> O,
-    O: Copy + std::fmt::Debug,
-{
+pub struct FnMapIndex<I, F, O> {
     /// The underlying index.
     pub index: I,
     /// The mapping function.
