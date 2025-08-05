@@ -60,7 +60,7 @@ where
     /// assert_eq!(df.index, index);
     /// assert_eq!(df.data, data);
     /// ```
-    pub fn new(index: I, data: D) -> Self {
+    pub const fn new(index: I, data: D) -> Self {
         Self { index, data }
     }
 

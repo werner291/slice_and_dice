@@ -17,7 +17,7 @@ pub struct CompoundIndex<Indices> {
 }
 
 impl<Indices> CompoundIndex<Indices> {
-    pub fn new(indices: Indices) -> Self {
+    pub const fn new(indices: Indices) -> Self {
         Self { indices }
     }
 }

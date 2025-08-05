@@ -15,7 +15,7 @@ pub struct FnMapValue<O: Copy + std::fmt::Debug> {
 
 impl<O: Copy + std::fmt::Debug> FnMapValue<O> {
     /// Create a new FnMapValue with the given flat index and mapped value.
-    pub fn new(flat_index: usize, mapped: O) -> Self {
+    pub const fn new(flat_index: usize, mapped: O) -> Self {
         Self { flat_index, mapped }
     }
 }
@@ -82,7 +82,7 @@ where
     O: Copy + std::fmt::Debug,
 {
     /// Create a new FnMapIndex with the given underlying index and mapping function.
-    pub fn new(index: I, map_fn: F) -> Self {
+    pub const fn new(index: I, map_fn: F) -> Self {
         Self {
             index,
             map_fn,

@@ -146,7 +146,7 @@ impl<T, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
 
 impl<T, Tag> CategoricalIndex<T, Tag> {
     /// Create a new CategoricalIndex from a vector of values.
-    pub fn new(values: Vec<T>) -> Self {
+    pub const fn new(values: Vec<T>) -> Self {
         Self {
             values,
             _phantom: PhantomData,
@@ -160,7 +160,7 @@ impl<T, Tag> CategoricalIndex<T, Tag> {
 
 impl<'a, T, Tag> SliceCategoricalIndex<'a, T, Tag> {
     /// Create a new SliceCategoricalIndex from a slice of values.
-    pub fn new(values: &'a [T]) -> Self {
+    pub const fn new(values: &'a [T]) -> Self {
         Self {
             values,
             _phantom: PhantomData,
@@ -174,7 +174,7 @@ impl<'a, T, Tag> SliceCategoricalIndex<'a, T, Tag> {
 
 impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
     /// Create a new CategoricalValue from a reference and index.
-    pub fn new(value: &'idx T, index: usize) -> Self {
+    pub const fn new(value: &'idx T, index: usize) -> Self {
         Self {
             value,
             index,

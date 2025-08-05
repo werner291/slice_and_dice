@@ -55,7 +55,7 @@ impl<I: Copy, T> Clone for SparseNumericValue<I, T> {
 
 impl<I: Copy, T> SparseNumericValue<I, T> {
     /// Create a new SparseNumericValue with the given value and index.
-    pub fn new(value: I, index: usize) -> Self {
+    pub const fn new(value: I, index: usize) -> Self {
         Self {
             value,
             index,

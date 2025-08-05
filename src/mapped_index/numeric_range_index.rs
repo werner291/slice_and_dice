@@ -67,7 +67,7 @@ where
     <I as TryInto<usize>>::Error: std::fmt::Debug,
 {
     /// Create a new NumericRangeIndex from start and end.
-    pub fn new(start: I, end: I) -> Self {
+    pub const fn new(start: I, end: I) -> Self {
         Self {
             start,
             end,
@@ -152,7 +152,7 @@ impl<I: Copy + std::fmt::Debug + 'static, T: 'static> std::ops::Index<I>
 
 impl<'idx, I: std::fmt::Debug, T> NumericValue<I, T> {
     /// Create a new NumericValue from an index.
-    pub fn new(index: I) -> Self {
+    pub const fn new(index: I) -> Self {
         Self {
             index,
             _phantom: PhantomData,

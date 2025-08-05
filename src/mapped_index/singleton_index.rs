@@ -10,7 +10,7 @@ pub struct SingletonIndex<T> {
 
 impl<T> SingletonIndex<T> {
     /// Create a new SingletonIndex with the given value.
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self { value }
     }
 
