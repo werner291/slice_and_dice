@@ -11,8 +11,8 @@ pub struct CategoricalValue<'a, T, Tag> {
     _phantom: PhantomData<Tag>,
 }
 
-impl<'idx, T: Copy, Tag> Copy for CategoricalValue<'idx, T, Tag> {}
-impl<'idx, T: Copy, Tag> Clone for CategoricalValue<'idx, T, Tag> {
+impl<'idx, T, Tag> Copy for CategoricalValue<'idx, T, Tag> {}
+impl<'idx, T, Tag> Clone for CategoricalValue<'idx, T, Tag> {
     fn clone(&self) -> Self {
         *self
     }
@@ -74,7 +74,7 @@ impl<'a, T: PartialEq, Tag: 'static> PartialEq<Self> for SliceCategoricalIndex<'
     }
 }
 
-impl<'a, T: Copy + 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T, Tag> {
     type Value<'b>
         = CategoricalValue<'b, T, Tag>
     where
@@ -109,7 +109,7 @@ impl<'a, T: Copy + 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T
     }
 }
 
-impl<T: Copy, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
+impl<T, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
     type Value<'a>
         = CategoricalValue<'a, T, Tag>
     where
@@ -144,7 +144,7 @@ impl<T: Copy, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
     }
 }
 
-impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
+impl<T, Tag> CategoricalIndex<T, Tag> {
     /// Create a new CategoricalIndex from a vector of values.
     pub fn new(values: Vec<T>) -> Self {
         Self {
@@ -158,7 +158,7 @@ impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
     }
 }
 
-impl<'a, T: Copy, Tag> SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T, Tag> SliceCategoricalIndex<'a, T, Tag> {
     /// Create a new SliceCategoricalIndex from a slice of values.
     pub fn new(values: &'a [T]) -> Self {
         Self {
