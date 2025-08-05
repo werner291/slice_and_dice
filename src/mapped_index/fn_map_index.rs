@@ -13,6 +13,13 @@ pub struct FnMapValue<O: Copy + std::fmt::Debug> {
     pub mapped: O,
 }
 
+impl<O: Copy + std::fmt::Debug> FnMapValue<O> {
+    /// Create a new FnMapValue with the given flat index and mapped value.
+    pub fn new(flat_index: usize, mapped: O) -> Self {
+        Self { flat_index, mapped }
+    }
+}
+
 /// An index that wraps another index and maps its values using a function.
 ///
 /// This allows an index to be "interpreted" as some higher-level value based on its lower-level components.
@@ -101,10 +108,7 @@ where
         (0..self.index.size()).map(move |i| {
             let original = self.index.unflatten_index_value(i);
             let mapped = map_fn(original);
-            FnMapValue {
-                flat_index: i,
-                mapped,
-            }
+            FnMapValue::new(i, mapped)
         })
     }
 
@@ -124,10 +128,7 @@ where
         }
         let original = self.index.unflatten_index_value(index);
         let mapped = (self.map_fn)(original);
-        FnMapValue {
-            flat_index: index,
-            mapped,
-        }
+        FnMapValue::new(index, mapped)
     }
 
     /// Returns the number of values in the index.

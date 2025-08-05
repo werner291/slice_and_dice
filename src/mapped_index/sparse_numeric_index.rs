@@ -53,6 +53,17 @@ impl<I: Copy, T> Clone for SparseNumericValue<I, T> {
     }
 }
 
+impl<I: Copy, T> SparseNumericValue<I, T> {
+    /// Create a new SparseNumericValue with the given value and index.
+    pub fn new(value: I, index: usize) -> Self {
+        Self {
+            value,
+            index,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<I: PartialEq, T> PartialEq for SparseNumericValue<I, T> {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.index == other.index
@@ -67,11 +78,7 @@ impl<I: Copy + 'static, T: 'static> MappedIndex for SparseNumericIndex<I, T> {
         self.indices
             .iter()
             .enumerate()
-            .map(move |(index, v)| SparseNumericValue {
-                value: *v,
-                index,
-                _phantom: PhantomData,
-            })
+            .map(move |(index, v)| SparseNumericValue::new(*v, index))
     }
 
     fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
@@ -79,11 +86,7 @@ impl<I: Copy + 'static, T: 'static> MappedIndex for SparseNumericIndex<I, T> {
     }
 
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
-        SparseNumericValue {
-            value: self.indices[index],
-            index,
-            _phantom: PhantomData,
-        }
+        SparseNumericValue::new(self.indices[index], index)
     }
 
     fn size(&self) -> usize {
