@@ -8,6 +8,18 @@ pub struct SingletonIndex<T> {
     pub value: T,
 }
 
+impl<T> SingletonIndex<T> {
+    /// Create a new SingletonIndex with the given value.
+    pub fn new(value: T) -> Self {
+        Self { value }
+    }
+
+    /// Get a reference to the value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+}
+
 impl<T> MappedIndex for SingletonIndex<T> {
     type Value<'a>
         = &'a T
