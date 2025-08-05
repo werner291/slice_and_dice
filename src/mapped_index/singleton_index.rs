@@ -36,7 +36,7 @@ impl<T: Clone> SingletonIndex<T> {
     }
 }
 
-impl<T: Copy + 'static> MappedIndex for SingletonIndex<T> {
+impl<T> MappedIndex for SingletonIndex<T> {
     type Value<'a>
         = &'a T
     where
