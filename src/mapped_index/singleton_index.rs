@@ -2,38 +2,10 @@ use super::MappedIndex;
 
 /// An index representing a single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct SingletonIndex<T> {
     /// The value of type T.
     pub value: T,
-}
-
-impl<T: Clone> Clone for SingletonIndex<T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value.clone(),
-        }
-    }
-}
-
-impl<T: PartialEq> PartialEq for SingletonIndex<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
-
-impl<T: Eq> Eq for SingletonIndex<T> {}
-
-impl<T: Clone> SingletonIndex<T> {
-    /// Create a new SingletonIndex with the given value.
-    pub fn new(value: T) -> Self {
-        Self { value }
-    }
-
-    /// Returns the singleton value.
-    pub fn value(&self) -> &T {
-        &self.value
-    }
 }
 
 impl<T> MappedIndex for SingletonIndex<T> {
