@@ -3,6 +3,8 @@ use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use crate::mapped_index::MappedIndex;
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
 use std::ops::Index;
 
 /// A generic DataFrame type associating an index with a data collection.
@@ -123,6 +125,67 @@ where
         let data = self.data.iter().map(|v| f(v)).collect();
         DataFrame {
             index: self.index.clone(),
+            data,
+        }
+    }
+
+    /// Create a DataFrame from an index by mapping each value in the index to some value through a user-provided function.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
+    /// let df = DataFrame::<NumericRangeIndex<i32, Row>, Vec<i32>>::build_from_index(&index, |v| v.index * 10);
+    /// assert_eq!(df.data, vec![0, 10, 20]);
+    /// assert_eq!(df.index, index);
+    /// ```
+    pub fn build_from_index<F, U>(index: &I, mut f: F) -> DataFrame<I, Vec<U>>
+    where
+        F: FnMut(I::Value<'_>) -> U,
+    {
+        let data = index.iter().map(|v| f(v)).collect();
+        DataFrame {
+            index: index.clone(),
+            data,
+        }
+    }
+
+    /// Create a DataFrame from an index by mapping each value in the index to some value through a user-provided function,
+    /// using parallel execution with rayon.
+    ///
+    /// This function is only available when the "rayon" feature is enabled.
+    ///
+    /// # Example
+    /// ```
+    /// # #[cfg(feature = "rayon")]
+    /// # {
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
+    /// let df = DataFrame::<NumericRangeIndex<i32, Row>, Vec<i32>>::build_from_index_par(&index, |v| v.index * 10);
+    /// assert_eq!(df.data, vec![0, 10, 20]);
+    /// assert_eq!(df.index, index);
+    /// # }
+    /// ```
+    #[cfg(feature = "rayon")]
+    pub fn build_from_index_par<F, U>(index: &I, f: F) -> DataFrame<I, Vec<U>>
+    where
+        F: Fn(I::Value<'_>) -> U + Send + Sync,
+        U: Send,
+    {
+        let data = index
+            .iter()
+            .collect::<Vec<_>>()
+            .par_iter()
+            .map(|&v| f(v))
+            .collect();
+        DataFrame {
+            index: index.clone(),
             data,
         }
     }
@@ -311,5 +374,34 @@ mod tests {
         let df2 = df.collapse_single_index();
         assert_eq!(df2.index, NumericRangeIndex::<i32, Tag>::new(0, 3));
         assert_eq!(df2.data, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_build_from_index() {
+        use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+        #[derive(Debug, PartialEq)]
+        struct Row;
+        let index = NumericRangeIndex::<i32, Row>::new(0, 3);
+        let df =
+            DataFrame::<NumericRangeIndex<i32, Row>, Vec<i32>>::build_from_index(&index, |v| {
+                v.index * 10
+            });
+        assert_eq!(df.data, vec![0, 10, 20]);
+        assert_eq!(df.index, index);
+    }
+
+    #[cfg(feature = "rayon")]
+    #[test]
+    fn test_build_from_index_par() {
+        use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+        #[derive(Debug, PartialEq)]
+        struct Row;
+        let index = NumericRangeIndex::<i32, Row>::new(0, 3);
+        let df =
+            DataFrame::<NumericRangeIndex<i32, Row>, Vec<i32>>::build_from_index_par(&index, |v| {
+                v.index * 10
+            });
+        assert_eq!(df.data, vec![0, 10, 20]);
+        assert_eq!(df.index, index);
     }
 }
