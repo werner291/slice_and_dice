@@ -1,5 +1,5 @@
 //! Core DataFrame struct and basic methods.
-use crate::mapped_index::compound_index::CompoundIndex;
+use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple};
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use crate::mapped_index::MappedIndex;
@@ -98,6 +98,29 @@ where
     /// ```
     pub fn get_flat(&self, flat_index: usize) -> &D::Output {
         &self.data[flat_index]
+    }
+
+    /// Return an iterator over pairs of index and data values.
+    ///
+    /// Iterates over all pairs of index values and their corresponding data values in order.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::DataFrame;
+    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// #[derive(Debug)]
+    /// struct Row;
+    /// let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![10, 20, 30]);
+    /// let pairs: Vec<_> = df.iter().collect();
+    /// assert_eq!(pairs[0], (NumericValue::new(0), &10));
+    /// assert_eq!(pairs[1], (NumericValue::new(1), &20));
+    /// assert_eq!(pairs[2], (NumericValue::new(2), &30));
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
+        self.index
+            .iter()
+            .enumerate()
+            .map(|(i, v)| (v, &self.data[i]))
     }
 }
 
