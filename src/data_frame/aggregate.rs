@@ -11,10 +11,41 @@ use num_traits::{FromPrimitive, Zero};
 use peano::NonNeg;
 use std::ops::Index;
 
-impl<Indices: IndexTuple, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
+impl<Indices: IndexTuple + Clone, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
 where
     D::Output: Clone,
 {
+    /// Iterate over the dimension specified by typenum.
+    ///
+    /// Returns an iterator that yields StridedIndexViews for each combination of indices
+    /// except the dimension being iterated over.
+    pub fn iter_over_dim<'a, N: NonNeg>(
+        &'a self,
+    ) -> impl Iterator<Item = StridedIndexView<'a, D>> + 'a
+    where
+        Indices: TupleExtract<N>,
+        <Indices as TupleExtract<N>>::Before: TupleConcat,
+        ExtractLeft<N, Indices>: IndexTuple,
+        Extract<N, Indices>: MappedIndex,
+        ExtractRemainder<N, Indices>: IndexTuple,
+        ExtractRight<N, Indices>: IndexTuple,
+    {
+        let (l, m, r) = self.index.indices.clone().extract_at::<N>();
+        let l_size = l.as_ref_tuple().size();
+        let m_size = m.size();
+        let r_size = r.as_ref_tuple().size();
+        let data = &self.data;
+
+        (0..l_size).flat_map(move |l_i| {
+            (0..r_size).map(move |r_i| StridedIndexView {
+                base: l_i * m_size * r_size + r_i,
+                stride: r_size,
+                n_strides: m_size,
+                view_into: data,
+            })
+        })
+    }
+
     /// Aggregate over the dimension specified by typenum.
     pub fn aggregate_over_dim<N: NonNeg, F, R>(
         self,
@@ -128,5 +159,33 @@ mod tests {
         assert_eq!(mean_df.index.collapse_single(), expected_index);
         assert!((mean_df.data[0] - expected_data[0]).abs() < 1e-8);
         assert!((mean_df.data[1] - expected_data[1]).abs() < 1e-8);
+    }
+
+    #[test]
+    fn test_iter_over_dim() {
+        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
+        let compound_index = CompoundIndex {
+            indices: (outer_index.clone(), inner_index.clone()),
+        };
+        let data = vec![10, 20, 30, 40, 50, 60];
+        let df = DataFrame::new(compound_index, data);
+
+        // Collect all the StridedIndexViews into a vector of vectors
+        let views: Vec<Vec<i32>> = df
+            .iter_over_dim::<P1>()
+            .map(|view| view.copied().collect())
+            .collect();
+
+        // We expect 2 views (one for each outer index)
+        assert_eq!(views.len(), 2);
+
+        // Each view should have 3 elements (the size of the inner index)
+        assert_eq!(views[0].len(), 3);
+        assert_eq!(views[1].len(), 3);
+
+        // Check the values in each view
+        assert_eq!(views[0], vec![10, 20, 30]);
+        assert_eq!(views[1], vec![40, 50, 60]);
     }
 }
