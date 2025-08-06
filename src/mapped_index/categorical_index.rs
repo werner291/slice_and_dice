@@ -1,91 +1,85 @@
 use super::VariableRange;
-use std::marker::PhantomData;
 
 /// A value in a categorical index, referencing a value in the index and its position.
 #[derive(Debug)]
-pub struct CategoricalValue<'a, T, Tag> {
+pub struct CategoricalValue<'a, T> {
     /// Reference to the value in the index.
     pub value: &'a T,
     /// The position of the value in the index.
     index: usize,
-    _phantom: PhantomData<Tag>,
 }
 
-impl<'idx, T, Tag> Copy for CategoricalValue<'idx, T, Tag> {}
-impl<'idx, T, Tag> Clone for CategoricalValue<'idx, T, Tag> {
+impl<'idx, T> Copy for CategoricalValue<'idx, T> {}
+impl<'idx, T> Clone for CategoricalValue<'idx, T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'a, T: PartialEq, Tag> PartialEq for CategoricalValue<'a, T, Tag> {
+impl<'a, T: PartialEq> PartialEq for CategoricalValue<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.index == other.index
     }
 }
 
-impl<'a, T: Eq, Tag> Eq for CategoricalValue<'a, T, Tag> {}
+impl<'a, T: Eq> Eq for CategoricalValue<'a, T> {}
 
 /// An index for categorical values, mapping indices to values of type `T`.
 #[derive(Debug)]
-pub struct CategoricalRange<T, Tag> {
+pub struct CategoricalRange<T> {
     /// The values stored in the index.
     pub values: Vec<T>,
-    pub _phantom: PhantomData<Tag>,
 }
 
 /// An index for categorical values, mapping indices to values of type `T` using a slice.
 #[derive(Debug)]
-pub struct SliceCategoricalIndex<'a, T, Tag> {
+pub struct SliceCategoricalIndex<'a, T> {
     /// The values stored in the index.
     pub values: &'a [T],
-    pub _phantom: PhantomData<Tag>,
 }
 
-impl<T: Clone, Tag> Clone for CategoricalRange<T, Tag> {
+impl<T: Clone> Clone for CategoricalRange<T> {
     fn clone(&self) -> Self {
         Self {
             values: self.values.clone(),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<T: Eq, Tag: 'static> Eq for CategoricalRange<T, Tag> {}
+impl<T: Eq> Eq for CategoricalRange<T> {}
 
-impl<T: PartialEq, Tag: 'static> PartialEq<Self> for CategoricalRange<T, Tag> {
+impl<T: PartialEq> PartialEq<Self> for CategoricalRange<T> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
     }
 }
 
-impl<'a, T: Clone, Tag> Clone for SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: Clone> Clone for SliceCategoricalIndex<'a, T> {
     fn clone(&self) -> Self {
         Self {
             values: self.values,
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<'a, T: Eq, Tag: 'static> Eq for SliceCategoricalIndex<'a, T, Tag> {}
+impl<'a, T: Eq> Eq for SliceCategoricalIndex<'a, T> {}
 
-impl<'a, T: PartialEq, Tag: 'static> PartialEq<Self> for SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: PartialEq> PartialEq<Self> for SliceCategoricalIndex<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
     }
 }
 
-impl<'a, T: 'a, Tag: 'static> SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: 'a> SliceCategoricalIndex<'a, T> {
     /// Returns the flat index for a categorical value (its position).
-    pub(crate) fn flatten_index_value<'b>(&'b self, value: CategoricalValue<'b, T, Tag>) -> usize {
+    pub(crate) fn flatten_index_value<'b>(&'b self, value: CategoricalValue<'b, T>) -> usize {
         value.index
     }
 }
 
-impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: 'a> VariableRange for SliceCategoricalIndex<'a, T> {
     type Value<'b>
-        = CategoricalValue<'b, T, Tag>
+        = CategoricalValue<'b, T>
     where
         Self: 'b;
 
@@ -94,18 +88,13 @@ impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag
         self.values
             .iter()
             .enumerate()
-            .map(move |(index, v)| CategoricalValue {
-                value: v,
-                index,
-                _phantom: PhantomData,
-            })
+            .map(move |(index, v)| CategoricalValue { value: v, index })
     }
     /// Returns the categorical value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         CategoricalValue {
             value: &self.values[index],
             index,
-            _phantom: PhantomData,
         }
     }
     /// Returns the number of values in the categorical index.
@@ -114,9 +103,9 @@ impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag
     }
 }
 
-impl<T, Tag: 'static> VariableRange for CategoricalRange<T, Tag> {
+impl<T> VariableRange for CategoricalRange<T> {
     type Value<'a>
-        = CategoricalValue<'a, T, Tag>
+        = CategoricalValue<'a, T>
     where
         T: 'a;
 
@@ -125,18 +114,13 @@ impl<T, Tag: 'static> VariableRange for CategoricalRange<T, Tag> {
         self.values
             .iter()
             .enumerate()
-            .map(move |(index, v)| CategoricalValue {
-                value: v,
-                index,
-                _phantom: PhantomData,
-            })
+            .map(move |(index, v)| CategoricalValue { value: v, index })
     }
     /// Returns the categorical value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         CategoricalValue {
             value: &self.values[index],
             index,
-            _phantom: PhantomData,
         }
     }
     /// Returns the number of values in the categorical index.
@@ -145,42 +129,32 @@ impl<T, Tag: 'static> VariableRange for CategoricalRange<T, Tag> {
     }
 }
 
-impl<T, Tag> CategoricalRange<T, Tag> {
+impl<T> CategoricalRange<T> {
     /// Create a new CategoricalIndex from a vector of values.
     pub const fn new(values: Vec<T>) -> Self {
-        Self {
-            values,
-            _phantom: PhantomData,
-        }
+        Self { values }
     }
     /// Returns a reference to the value at the given categorical value.
-    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
+    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T>) -> &'idx T {
         &self.values[cat_value.index]
     }
 }
 
-impl<'a, T, Tag> SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T> SliceCategoricalIndex<'a, T> {
     /// Create a new SliceCategoricalIndex from a slice of values.
     pub const fn new(values: &'a [T]) -> Self {
-        Self {
-            values,
-            _phantom: PhantomData,
-        }
+        Self { values }
     }
     /// Returns a reference to the value at the given categorical value.
-    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
+    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T>) -> &'idx T {
         &self.values[cat_value.index]
     }
 }
 
-impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
+impl<'idx, T> CategoricalValue<'idx, T> {
     /// Create a new CategoricalValue from a reference and index.
     pub const fn new(value: &'idx T, index: usize) -> Self {
-        Self {
-            value,
-            index,
-            _phantom: PhantomData,
-        }
+        Self { value, index }
     }
 }
 
@@ -189,13 +163,10 @@ mod tests {
     use super::*;
     use crate::mapped_index::VariableRange;
 
-    struct Tag;
-
     #[test]
     fn test_unflatten_index_value() {
         let index = CategoricalRange {
             values: vec![1, 2, 3],
-            _phantom: PhantomData::<Tag>,
         };
         let cat_val = index.unflatten_index_value(2);
         assert_eq!(*cat_val.value, 3);
@@ -205,10 +176,7 @@ mod tests {
     #[test]
     fn test_slice_unflatten_index_value() {
         let values = [1, 2, 3];
-        let index = SliceCategoricalIndex {
-            values: &values,
-            _phantom: PhantomData::<Tag>,
-        };
+        let index = SliceCategoricalIndex { values: &values };
         let cat_val = index.unflatten_index_value(2);
         assert_eq!(*cat_val.value, 3);
         assert_eq!(cat_val.index, 2);
@@ -217,7 +185,7 @@ mod tests {
     #[test]
     fn test_slice_constructor() {
         let values = [1, 2, 3];
-        let index: SliceCategoricalIndex<_, Tag> = SliceCategoricalIndex::new(&values);
+        let index = SliceCategoricalIndex::new(&values);
         assert_eq!(index.size(), 3);
         let cat_val = index.unflatten_index_value(1);
         assert_eq!(*cat_val.value, 2);

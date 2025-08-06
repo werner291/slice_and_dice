@@ -125,13 +125,10 @@ mod tests {
     use crate::mapped_index::numeric_range::NumericRangeIndex;
     use peano::P1;
 
-    #[derive(Debug)]
-    struct Tag;
-
     #[test]
     fn test_aggregate_over_dim() {
-        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
-        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
+        let outer_index = NumericRangeIndex::<i32>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32>::new(0, 3);
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };
@@ -146,8 +143,8 @@ mod tests {
 
     #[test]
     fn test_mean_over_dim() {
-        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
-        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
+        let outer_index = NumericRangeIndex::<i32>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32>::new(0, 3);
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };
@@ -163,8 +160,8 @@ mod tests {
 
     #[test]
     fn test_iter_over_dim() {
-        let outer_index = NumericRangeIndex::<i32, Tag>::new(0, 2);
-        let inner_index = NumericRangeIndex::<i32, Tag>::new(0, 3);
+        let outer_index = NumericRangeIndex::<i32>::new(0, 2);
+        let inner_index = NumericRangeIndex::<i32>::new(0, 3);
         let compound_index = CompoundIndex {
             indices: (outer_index.clone(), inner_index.clone()),
         };

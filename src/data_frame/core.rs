@@ -230,17 +230,12 @@ where
 /// ```
 /// use slice_and_dice::data_frame::core::DataFrameFromNumericExt;
 /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
-/// // Tag type to mark the index dimension
-/// #[derive(Debug)]
-/// struct Row;
-/// let df = (0..3).to_numeric_dataframe::<Row>();
-/// assert_eq!(df.index, NumericRangeIndex::<i32, Row>::new(0, 3));
+/// let df = (0..3).to_numeric_dataframe();
+/// assert_eq!(df.index, NumericRangeIndex::<i32>::new(0, 3));
 /// assert_eq!(df.data, vec![0, 1, 2]);
 /// ```
 pub trait DataFrameFromNumericExt: Sized {
-    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(
-        self,
-    ) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<Self::Item>>
+    fn to_numeric_dataframe(self) -> DataFrame<NumericRangeIndex<i32>, Vec<Self::Item>>
     where
         Self: Iterator,
         Self::Item: 'static;
@@ -251,17 +246,11 @@ where
     I: Iterator,
     I::Item: 'static,
 {
-    fn to_numeric_dataframe<Tag: 'static + std::fmt::Debug>(
-        self,
-    ) -> DataFrame<NumericRangeIndex<i32, Tag>, Vec<I::Item>> {
+    fn to_numeric_dataframe(self) -> DataFrame<NumericRangeIndex<i32>, Vec<I::Item>> {
         let data: Vec<I::Item> = self.collect();
         let len = data.len() as i32;
         DataFrame {
-            index: NumericRangeIndex {
-                start: 0,
-                end: len,
-                _phantom: std::marker::PhantomData,
-            },
+            index: NumericRangeIndex { start: 0, end: len },
             data,
         }
     }
@@ -273,11 +262,9 @@ where
 /// ```
 /// use slice_and_dice::data_frame::core::DataFrameFromSparseNumericExt;
 /// use slice_and_dice::mapped_index::sparse_numeric_index::SparseNumericIndex;
-/// #[derive(Debug)]
-/// struct Row;
 /// let df = [(10i64, "a"), (20i64, "b")]
 ///     .into_iter()
-///     .to_sparse_numeric_dataframe::<Row>();
+///     .to_sparse_numeric_dataframe();
 /// assert_eq!(df.index.indices, vec![10, 20]);
 /// assert_eq!(df.data, vec!["a", "b"]);
 /// ```
@@ -286,9 +273,7 @@ where
     I: Copy + PartialOrd + 'static,
     T: 'static,
 {
-    fn to_sparse_numeric_dataframe<Tag: 'static>(
-        self,
-    ) -> DataFrame<SparseNumericIndex<I, Tag>, Vec<T>>;
+    fn to_sparse_numeric_dataframe(self) -> DataFrame<SparseNumericIndex<I>, Vec<T>>;
 }
 
 impl<Itr, I, T> DataFrameFromSparseNumericExt<I, T> for Itr
@@ -297,15 +282,10 @@ where
     I: Copy + PartialOrd + 'static,
     T: 'static,
 {
-    fn to_sparse_numeric_dataframe<Tag: 'static>(
-        self,
-    ) -> DataFrame<SparseNumericIndex<I, Tag>, Vec<T>> {
+    fn to_sparse_numeric_dataframe(self) -> DataFrame<SparseNumericIndex<I>, Vec<T>> {
         let (indices, data): (Vec<I>, Vec<T>) = self.unzip();
         DataFrame {
-            index: SparseNumericIndex {
-                indices,
-                _phantom: std::marker::PhantomData,
-            },
+            index: SparseNumericIndex { indices },
             data,
         }
     }
@@ -322,7 +302,7 @@ mod tests {
     #[test]
     fn test_from_iter_numeric() {
         use crate::data_frame::core::DataFrameFromNumericExt;
-        let df = (0..5).to_numeric_dataframe::<Tag>();
+        let df = (0..5).to_numeric_dataframe();
         assert_eq!(df.index.start, 0);
         assert_eq!(df.index.end, 5);
         assert_eq!(df.data, vec![0, 1, 2, 3, 4]);
@@ -333,7 +313,7 @@ mod tests {
         use crate::data_frame::core::DataFrameFromSparseNumericExt;
         let df = [(10i64, "a"), (20i64, "b")]
             .into_iter()
-            .to_sparse_numeric_dataframe::<Tag>();
+            .to_sparse_numeric_dataframe();
         assert_eq!(df.index.indices, vec![10i64, 20i64]);
         assert_eq!(df.data, vec!["a", "b"]);
     }
@@ -342,39 +322,32 @@ mod tests {
     fn test_map() {
         use crate::data_frame::core::DataFrame;
         use crate::mapped_index::numeric_range::NumericRangeIndex;
-        #[derive(Debug, PartialEq)]
-        struct Row;
-        let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![1, 2, 3]);
+        let df = DataFrame::new(NumericRangeIndex::<i32>::new(0, 3), vec![1, 2, 3]);
         let df2 = df.map(|x| x * 2);
         assert_eq!(df2.data, vec![2, 4, 6]);
-        assert_eq!(df2.index, NumericRangeIndex::<i32, Row>::new(0, 3));
+        assert_eq!(df2.index, NumericRangeIndex::<i32>::new(0, 3));
     }
 
     #[test]
     fn test_collapse_single_index() {
         use crate::mapped_index::compound_index::CompoundIndex;
         use crate::mapped_index::numeric_range::NumericRangeIndex;
-        #[derive(Debug, PartialEq)]
-        struct Tag;
         let index = CompoundIndex {
-            indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),),
+            indices: (NumericRangeIndex::<i32>::new(0, 3),),
         };
         let df = DataFrame::new(index, vec![1, 2, 3]);
         let df2 = df.collapse_single_index();
-        assert_eq!(df2.index, NumericRangeIndex::<i32, Tag>::new(0, 3));
+        assert_eq!(df2.index, NumericRangeIndex::<i32>::new(0, 3));
         assert_eq!(df2.data, vec![1, 2, 3]);
     }
 
     #[test]
     fn test_build_from_index() {
         use crate::mapped_index::numeric_range::{NumericRange, NumericRangeIndex};
-        #[derive(Debug, PartialEq)]
-        struct Row;
-        let index = NumericRangeIndex::<i32, Row>::new(0, 3);
-        let df =
-            DataFrame::<NumericRangeIndex<i32, Row>, Vec<i32>>::build_from_index(&index, |v| {
-                v.index * 10
-            });
+        let index = NumericRangeIndex::<i32>::new(0, 3);
+        let df = DataFrame::<NumericRangeIndex<i32>, Vec<i32>>::build_from_index(&index, |v| {
+            v.index * 10
+        });
         assert_eq!(df.data, vec![0, 10, 20]);
         assert_eq!(df.index, index);
     }

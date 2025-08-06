@@ -39,10 +39,9 @@ where
     ///
     /// The top-level index selects the original DataFrame, and the lower-level index is from the original DataFrames.
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
-    pub fn stack<StackTag: 'static + std::fmt::Debug>(
+    pub fn stack(
         dfs: impl IntoIterator<Item = DataFrame<I, D>>,
-    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<usize, StackTag>, I)>, Vec<D::Output>>>
-    {
+    ) -> Option<DataFrame<CompoundIndex<(NumericRangeIndex<usize>, I)>, Vec<D::Output>>> {
         let dfs: Vec<DataFrame<I, D>> = dfs.into_iter().collect();
         if dfs.is_empty() {
             return None;
@@ -68,10 +67,9 @@ where
     }
 }
 
-impl<I, T, D> DataFrame<SparseNumericIndex<I, T>, D>
+impl<I, D> DataFrame<SparseNumericIndex<I>, D>
 where
     I: Copy + PartialOrd + Ord + 'static,
-    T: 'static,
     D: Index<usize>,
     D::Output: Clone + Default,
 {
@@ -86,18 +84,15 @@ where
     /// * `interpolation` - The method to use for interpolating missing values
     /// * `extrapolation` - The method to use for extrapolating missing values
     /// * `default_value` - The default value to use when interpolation or extrapolation method is Default
-    pub fn stack_sparse<StackTag: 'static + std::fmt::Debug>(
-        dfs: impl IntoIterator<Item = DataFrame<SparseNumericIndex<I, T>, D>>,
+    pub fn stack_sparse(
+        dfs: impl IntoIterator<Item = DataFrame<SparseNumericIndex<I>, D>>,
         interpolation: InterpolationMethod,
         extrapolation: ExtrapolationMethod,
         default_value: D::Output,
     ) -> Option<
-        DataFrame<
-            CompoundIndex<(NumericRangeIndex<usize, StackTag>, SparseNumericIndex<I, T>)>,
-            Vec<D::Output>,
-        >,
+        DataFrame<CompoundIndex<(NumericRangeIndex<usize>, SparseNumericIndex<I>)>, Vec<D::Output>>,
     > {
-        let dfs: Vec<DataFrame<SparseNumericIndex<I, T>, D>> = dfs.into_iter().collect();
+        let dfs: Vec<DataFrame<SparseNumericIndex<I>, D>> = dfs.into_iter().collect();
         if dfs.is_empty() {
             return None;
         }
@@ -214,10 +209,10 @@ mod tests {
 
     #[test]
     fn test_stack() {
-        let index = NumericRangeIndex::<i32, Tag>::new(0, 2);
+        let index = NumericRangeIndex::<i32>::new(0, 2);
         let df1 = DataFrame::new(index.clone(), vec![10, 20]);
         let df2 = DataFrame::new(index.clone(), vec![30, 40]);
-        let stacked = DataFrame::stack::<StackTag>(vec![df1, df2]).unwrap();
+        let stacked = DataFrame::stack(vec![df1, df2]).unwrap();
 
         assert_eq!(stacked.index.indices.0.size(), 2); // Outer index size
         assert_eq!(stacked.index.indices.1, index); // Inner index
@@ -227,11 +222,11 @@ mod tests {
     #[test]
     fn test_stack_sparse_matching() {
         // Test with matching indices
-        let index1 = SparseNumericIndex::<i32, Tag>::new(vec![1, 3, 5]);
+        let index1 = SparseNumericIndex::<i32>::new(vec![1, 3, 5]);
         let df1 = DataFrame::new(index1.clone(), vec![10, 30, 50]);
         let df2 = DataFrame::new(index1.clone(), vec![100, 300, 500]);
 
-        let stacked = DataFrame::stack_sparse::<StackTag>(
+        let stacked = DataFrame::stack_sparse(
             vec![df1, df2],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Nearest,
@@ -247,12 +242,12 @@ mod tests {
     #[test]
     fn test_stack_sparse_mismatching() {
         // Test with mismatching indices
-        let index1 = SparseNumericIndex::<i32, Tag>::new(vec![1, 3, 5]);
-        let index2 = SparseNumericIndex::<i32, Tag>::new(vec![2, 3, 6]);
+        let index1 = SparseNumericIndex::<i32>::new(vec![1, 3, 5]);
+        let index2 = SparseNumericIndex::<i32>::new(vec![2, 3, 6]);
         let df1 = DataFrame::new(index1, vec![10, 30, 50]);
         let df2 = DataFrame::new(index2, vec![20, 30, 60]);
 
-        let stacked = DataFrame::stack_sparse::<StackTag>(
+        let stacked = DataFrame::stack_sparse(
             vec![df1, df2],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Nearest,
@@ -275,17 +270,17 @@ mod tests {
     #[test]
     fn test_stack_sparse_interpolation_methods() {
         // Test different interpolation methods
-        let index1 = SparseNumericIndex::<i32, Tag>::new(vec![1, 5]);
-        let index2 = SparseNumericIndex::<i32, Tag>::new(vec![1, 5]);
+        let index1 = SparseNumericIndex::<i32>::new(vec![1, 5]);
+        let index2 = SparseNumericIndex::<i32>::new(vec![1, 5]);
         let df1 = DataFrame::new(index1, vec![10, 50]);
         let df2 = DataFrame::new(index2, vec![100, 500]);
 
         // Create a third DataFrame with the index 3 to ensure it's in the union
-        let index3 = SparseNumericIndex::<i32, Tag>::new(vec![1, 3, 5]);
+        let index3 = SparseNumericIndex::<i32>::new(vec![1, 3, 5]);
         let df3 = DataFrame::new(index3, vec![1000, 3000, 5000]);
 
         // Test Previous interpolation
-        let stacked_prev = DataFrame::stack_sparse::<StackTag>(
+        let stacked_prev = DataFrame::stack_sparse(
             vec![df1.clone(), df2.clone(), df3.clone()],
             InterpolationMethod::Previous,
             ExtrapolationMethod::Nearest,
@@ -303,7 +298,7 @@ mod tests {
         );
 
         // Test Next interpolation
-        let stacked_next = DataFrame::stack_sparse::<StackTag>(
+        let stacked_next = DataFrame::stack_sparse(
             vec![df1.clone(), df2.clone(), df3.clone()],
             InterpolationMethod::Next,
             ExtrapolationMethod::Nearest,
@@ -321,7 +316,7 @@ mod tests {
         );
 
         // Test Default interpolation
-        let stacked_default = DataFrame::stack_sparse::<StackTag>(
+        let stacked_default = DataFrame::stack_sparse(
             vec![df1, df2, df3],
             InterpolationMethod::Default,
             ExtrapolationMethod::Default,
@@ -345,8 +340,8 @@ mod tests {
         let indices1 = vec![1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
         let indices2 = indices1.clone();
 
-        let index1 = SparseNumericIndex::<i32, LargeTag>::new(indices1);
-        let index2 = SparseNumericIndex::<i32, LargeTag>::new(indices2);
+        let index1 = SparseNumericIndex::<i32>::new(indices1);
+        let index2 = SparseNumericIndex::<i32>::new(indices2);
 
         let data1: Vec<i32> = (0..12).map(|i| i * 10).collect();
         let data2: Vec<i32> = (0..12).map(|i| i * 100).collect();
@@ -354,7 +349,7 @@ mod tests {
         let df1 = DataFrame::new(index1.clone(), data1);
         let df2 = DataFrame::new(index2.clone(), data2);
 
-        let stacked = DataFrame::stack_sparse::<StackTag>(
+        let stacked = DataFrame::stack_sparse(
             vec![df1, df2],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Nearest,
@@ -385,8 +380,8 @@ mod tests {
         // Second DataFrame has odd indices
         let indices2: Vec<i32> = (0..12).map(|i| i * 2 + 1).collect();
 
-        let index1 = SparseNumericIndex::<i32, LargeTag>::new(indices1);
-        let index2 = SparseNumericIndex::<i32, LargeTag>::new(indices2);
+        let index1 = SparseNumericIndex::<i32>::new(indices1);
+        let index2 = SparseNumericIndex::<i32>::new(indices2);
 
         let data1: Vec<i32> = (0..12).map(|i| i * 10).collect();
         let data2: Vec<i32> = (0..12).map(|i| i * 100).collect();
@@ -394,7 +389,7 @@ mod tests {
         let df1 = DataFrame::new(index1, data1);
         let df2 = DataFrame::new(index2, data2);
 
-        let stacked = DataFrame::stack_sparse::<StackTag>(
+        let stacked = DataFrame::stack_sparse(
             vec![df1, df2],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Nearest,
@@ -419,8 +414,8 @@ mod tests {
         let empty_indices: Vec<i32> = vec![];
         let non_empty_indices: Vec<i32> = vec![1, 2, 3];
 
-        let empty_index = SparseNumericIndex::<i32, Tag>::new(empty_indices);
-        let non_empty_index = SparseNumericIndex::<i32, Tag>::new(non_empty_indices);
+        let empty_index = SparseNumericIndex::<i32>::new(empty_indices);
+        let non_empty_index = SparseNumericIndex::<i32>::new(non_empty_indices);
 
         let empty_data: Vec<i32> = vec![];
         let non_empty_data: Vec<i32> = vec![10, 20, 30];
@@ -429,7 +424,7 @@ mod tests {
         let non_empty_df = DataFrame::new(non_empty_index, non_empty_data);
 
         // This should not panic
-        let stacked = DataFrame::stack_sparse::<StackTag>(
+        let stacked = DataFrame::stack_sparse(
             vec![empty_df.clone(), non_empty_df.clone()],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Default, // Use Default to avoid the panic
@@ -446,7 +441,7 @@ mod tests {
 
         // This would panic without a fix because it tries to use Nearest extrapolation
         // on an empty DataFrame, but with our fix it should work correctly
-        let stacked_nearest = DataFrame::stack_sparse::<StackTag>(
+        let stacked_nearest = DataFrame::stack_sparse(
             vec![empty_df, non_empty_df],
             InterpolationMethod::Nearest,
             ExtrapolationMethod::Nearest,
@@ -470,9 +465,9 @@ mod tests {
         let indices2: Vec<i32> = vec![0, 10, 20, 30, 40, 50];
         let indices3: Vec<i32> = vec![0, 2, 4, 6, 8, 12, 16, 24, 32, 48];
 
-        let index1 = SparseNumericIndex::<i32, LargeTag>::new(indices1);
-        let index2 = SparseNumericIndex::<i32, LargeTag>::new(indices2);
-        let index3 = SparseNumericIndex::<i32, LargeTag>::new(indices3);
+        let index1 = SparseNumericIndex::<i32>::new(indices1);
+        let index2 = SparseNumericIndex::<i32>::new(indices2);
+        let index3 = SparseNumericIndex::<i32>::new(indices3);
 
         let data1: Vec<i32> = (0..11).map(|i| i * 10).collect();
         let data2: Vec<i32> = (0..6).map(|i| i * 100).collect();
@@ -483,7 +478,7 @@ mod tests {
         let df3 = DataFrame::new(index3, data3);
 
         // Test Previous interpolation
-        let stacked_prev = DataFrame::stack_sparse::<StackTag>(
+        let stacked_prev = DataFrame::stack_sparse(
             vec![df1.clone(), df2.clone(), df3.clone()],
             InterpolationMethod::Previous,
             ExtrapolationMethod::Nearest,
@@ -495,7 +490,7 @@ mod tests {
         assert!(stacked_prev.index.indices.1.indices.len() >= 20);
 
         // Test Next interpolation
-        let stacked_next = DataFrame::stack_sparse::<StackTag>(
+        let stacked_next = DataFrame::stack_sparse(
             vec![df1.clone(), df2.clone(), df3.clone()],
             InterpolationMethod::Next,
             ExtrapolationMethod::Nearest,
@@ -509,7 +504,7 @@ mod tests {
         );
 
         // Test Default interpolation and extrapolation
-        let stacked_default = DataFrame::stack_sparse::<StackTag>(
+        let stacked_default = DataFrame::stack_sparse(
             vec![df1, df2, df3],
             InterpolationMethod::Default,
             ExtrapolationMethod::Default,

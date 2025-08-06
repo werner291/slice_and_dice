@@ -138,10 +138,10 @@ mod tests {
     #[test]
     fn test_fn_map_index() {
         // Create a numeric range index from 0 to 10
-        let range_index = NumericRangeIndex::<i32, ()>::new(0, 10);
+        let range_index = NumericRangeIndex::<i32>::new(0, 10);
 
         // Create a function that maps i32 to a tuple of (i32, i32)
-        let map_fn = |v: NumericRange<i32, ()>| (v.index, v.index * 2);
+        let map_fn = |v: NumericRange<i32>| (v.index, v.index * 2);
 
         // Create a FnMapIndex that maps the numeric values to tuples
         let fn_map_index = FnMapIndex::new(range_index, map_fn);

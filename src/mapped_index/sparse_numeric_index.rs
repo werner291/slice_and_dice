@@ -1,78 +1,67 @@
 use super::VariableRange;
-use std::marker::PhantomData;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct SparseNumericIndex<I, T> {
+pub struct SparseNumericIndex<I> {
     pub indices: Vec<I>,
-    pub _phantom: PhantomData<T>,
 }
 
-impl<I: Clone, T> Clone for SparseNumericIndex<I, T> {
+impl<I: Clone> Clone for SparseNumericIndex<I> {
     fn clone(&self) -> Self {
         Self {
             indices: self.indices.clone(),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<I: PartialEq, T> PartialEq for SparseNumericIndex<I, T> {
+impl<I: PartialEq> PartialEq for SparseNumericIndex<I> {
     fn eq(&self, other: &Self) -> bool {
         self.indices == other.indices
     }
 }
-impl<I: Eq, T> Eq for SparseNumericIndex<I, T> {}
+impl<I: Eq> Eq for SparseNumericIndex<I> {}
 
-impl<I: PartialOrd + Copy, T> SparseNumericIndex<I, T> {
+impl<I: PartialOrd + Copy> SparseNumericIndex<I> {
     /// Create a new SparseNumericIndex from a Vec. Panics if not sorted.
     pub fn new(indices: Vec<I>) -> Self {
         if !indices.windows(2).all(|w| w[0] < w[1]) {
             panic!("SparseNumericIndex: indices must be strictly increasing");
         }
-        Self {
-            indices,
-            _phantom: PhantomData,
-        }
+        Self { indices }
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
-pub struct SparseNumericValue<I, T> {
+pub struct SparseNumericValue<I> {
     pub value: I,
     pub index: usize,
-    _phantom: PhantomData<T>,
 }
 
-impl<I: Copy, T> Copy for SparseNumericValue<I, T> {}
-impl<I: Copy, T> Clone for SparseNumericValue<I, T> {
+impl<I: Copy> Copy for SparseNumericValue<I> {}
+impl<I: Copy> Clone for SparseNumericValue<I> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<I: Copy, T> SparseNumericValue<I, T> {
+impl<I: Copy> SparseNumericValue<I> {
     /// Create a new SparseNumericValue with the given value and index.
     pub const fn new(value: I, index: usize) -> Self {
-        Self {
-            value,
-            index,
-            _phantom: PhantomData,
-        }
+        Self { value, index }
     }
 }
 
-impl<I: PartialEq, T> PartialEq for SparseNumericValue<I, T> {
+impl<I: PartialEq> PartialEq for SparseNumericValue<I> {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.index == other.index
     }
 }
-impl<I: Eq, T> Eq for SparseNumericValue<I, T> {}
+impl<I: Eq> Eq for SparseNumericValue<I> {}
 
-impl<I: Copy + 'static, T: 'static> VariableRange for SparseNumericIndex<I, T> {
-    type Value<'a> = SparseNumericValue<I, T>;
+impl<I: Copy + 'static> VariableRange for SparseNumericIndex<I> {
+    type Value<'a> = SparseNumericValue<I>;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
         self.indices
@@ -95,19 +84,19 @@ mod tests {
     use super::*;
     #[test]
     fn test_sparse_numeric_index_valid() {
-        let idx = SparseNumericIndex::<i64, ()>::new(vec![1, 3, 7, 10]);
+        let idx = SparseNumericIndex::<i64>::new(vec![1, 3, 7, 10]);
         assert_eq!(idx.indices, vec![1, 3, 7, 10]);
     }
 
     #[test]
     #[should_panic]
     fn test_sparse_numeric_index_invalid() {
-        let _ = SparseNumericIndex::<i64, ()>::new(vec![1, 3, 2, 10]);
+        let _ = SparseNumericIndex::<i64>::new(vec![1, 3, 2, 10]);
     }
 
     #[test]
     fn test_sparse_numeric_index_access() {
-        let idx = SparseNumericIndex::<i64, ()>::new(vec![5, 10, 15]);
+        let idx = SparseNumericIndex::<i64>::new(vec![5, 10, 15]);
         let val = idx.unflatten_index_value(1);
         assert_eq!(val.value, 10);
         assert_eq!(val.index, 1);
