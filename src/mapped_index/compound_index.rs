@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::mapped_index::MappedIndex;
+use crate::mapped_index::VariableRange;
 use crate::tuple_utils::{
     DropFirst, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleCollectOption, TupleFirstElement,
     TuplePrepend,
@@ -22,7 +22,7 @@ impl<Indices> CompoundIndex<Indices> {
     }
 }
 
-impl<A: MappedIndex> CompoundIndex<(A,)> {
+impl<A: VariableRange> CompoundIndex<(A,)> {
     pub fn collapse_single(self) -> A {
         self.indices.0
     }
@@ -70,13 +70,16 @@ impl<'a> IndexRefTuple<'a> for () {
     }
 }
 
-impl<'a, B: NonEmptyTuple + TupleFirstElement<First = &'a T> + Copy + 'a, T: MappedIndex + 'a>
-    IndexRefTuple<'a> for B
+impl<
+        'a,
+        B: NonEmptyTuple + TupleFirstElement<First = &'a T> + Copy + 'a,
+        T: VariableRange + 'a,
+    > IndexRefTuple<'a> for B
 where
-    Prepend<<T as MappedIndex>::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>:
+    Prepend<<T as VariableRange>::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>:
         Copy
             + TupleFirstElement<
-                First = <T as MappedIndex>::Value<'a>,
+                First = <T as VariableRange>::Value<'a>,
                 Rest = <DropFirst<B> as IndexRefTuple<'a>>::Value,
             >,
     DropFirst<B>: IndexRefTuple<'a>,
@@ -85,7 +88,7 @@ where
 
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
         let (h, t) = TupleFirstElement::split_first(self);
-        MappedIndex::iter(h).flat_map(move |hv| t.iter().map(move |tv| tv.prepend(hv)))
+        VariableRange::iter(h).flat_map(move |hv| t.iter().map(move |tv| tv.prepend(hv)))
     }
 
     fn flatten_index_value(self, v: Self::Value) -> usize {
@@ -134,7 +137,7 @@ where
     }
 }
 
-impl<Indices> MappedIndex for CompoundIndex<Indices>
+impl<Indices> VariableRange for CompoundIndex<Indices>
 where
     Indices: IndexTuple,
 {
@@ -164,7 +167,7 @@ where
 mod tests {
     use super::*;
     use crate::mapped_index::{
-        categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex, MappedIndex,
+        categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex, VariableRange,
     };
 
     #[derive(Debug)]
@@ -177,7 +180,7 @@ mod tests {
         let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
         let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
-        assert_eq!(MappedIndex::size(&ci), 2 * 3);
+        assert_eq!(VariableRange::size(&ci), 2 * 3);
     }
 
     #[test]

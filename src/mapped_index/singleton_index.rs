@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use super::VariableRange;
 
 /// An index representing a single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,7 +20,7 @@ impl<T> SingletonIndex<T> {
     }
 }
 
-impl<T> MappedIndex for SingletonIndex<T> {
+impl<T> VariableRange for SingletonIndex<T> {
     type Value<'a>
         = &'a T
     where
@@ -54,7 +54,7 @@ impl<T> MappedIndex for SingletonIndex<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::MappedIndex;
+    use crate::mapped_index::VariableRange;
 
     #[test]
     fn test_singleton_index() {

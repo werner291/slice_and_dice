@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use super::VariableRange;
 use std::marker::PhantomData;
 
 /// A value in a function-mapped index, representing a mapped value from the underlying index.
@@ -40,7 +40,7 @@ pub struct FnMapIndex<I, F, O> {
 
 impl<I, F, O> Clone for FnMapIndex<I, F, O>
 where
-    I: MappedIndex + Clone,
+    I: VariableRange + Clone,
     F: Fn(I::Value<'_>) -> O + Clone,
     O: Copy + std::fmt::Debug,
 {
@@ -55,7 +55,7 @@ where
 
 impl<I, F, O> PartialEq for FnMapIndex<I, F, O>
 where
-    I: MappedIndex + PartialEq,
+    I: VariableRange + PartialEq,
     F: Fn(I::Value<'_>) -> O,
     O: Copy + std::fmt::Debug,
 {
@@ -67,7 +67,7 @@ where
 
 impl<I, F, O> Eq for FnMapIndex<I, F, O>
 where
-    I: MappedIndex + Eq,
+    I: VariableRange + Eq,
     F: Fn(I::Value<'_>) -> O,
     O: Copy + std::fmt::Debug,
 {
@@ -75,7 +75,7 @@ where
 
 impl<I, F, O> FnMapIndex<I, F, O>
 where
-    I: MappedIndex,
+    I: VariableRange,
     F: Fn(I::Value<'_>) -> O,
     O: Copy + std::fmt::Debug,
 {
@@ -89,9 +89,9 @@ where
     }
 }
 
-impl<I, F, O> MappedIndex for FnMapIndex<I, F, O>
+impl<I, F, O> VariableRange for FnMapIndex<I, F, O>
 where
-    I: MappedIndex + 'static,
+    I: VariableRange + 'static,
     F: Fn(I::Value<'_>) -> O + 'static,
     O: Copy + std::fmt::Debug + 'static,
 {

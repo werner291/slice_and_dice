@@ -2,7 +2,7 @@
 use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple};
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
-use crate::mapped_index::MappedIndex;
+use crate::mapped_index::VariableRange;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::ops::Index;
@@ -31,7 +31,7 @@ use std::ops::Index;
 #[derive(Debug, Clone)]
 pub struct DataFrame<I, D>
 where
-    I: MappedIndex,
+    I: VariableRange,
     D: Index<usize>,
 {
     /// The index structure (categorical, numeric, compound, etc.).
@@ -42,7 +42,7 @@ where
 
 impl<I, D> DataFrame<I, D>
 where
-    I: MappedIndex,
+    I: VariableRange,
     D: Index<usize> + IntoIterator,
 {
     /// Construct a new DataFrame from index and data.
@@ -126,7 +126,7 @@ where
 
 impl<I, T> DataFrame<I, Vec<T>>
 where
-    I: MappedIndex + Clone,
+    I: VariableRange + Clone,
 {
     /// Apply a function to all values in the DataFrame, returning a new DataFrame with mapped data.
     ///
@@ -216,7 +216,7 @@ where
 
 impl<I, D> DataFrame<CompoundIndex<(I,)>, D>
 where
-    I: MappedIndex + 'static,
+    I: VariableRange + 'static,
     D: Index<usize>,
 {
     /// Collapse a DataFrame with a (I,) index tuple into one with just an I index.

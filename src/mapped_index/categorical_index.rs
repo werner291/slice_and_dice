@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use super::VariableRange;
 use std::marker::PhantomData;
 
 /// A value in a categorical index, referencing a value in the index and its position.
@@ -76,7 +76,7 @@ impl<'a, T: PartialEq, Tag: 'static> PartialEq<Self> for SliceCategoricalIndex<'
     }
 }
 
-impl<'a, T: 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T, Tag> {
+impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag> {
     type Value<'b>
         = CategoricalValue<'b, T, Tag>
     where
@@ -111,7 +111,7 @@ impl<'a, T: 'a, Tag: 'static> MappedIndex for SliceCategoricalIndex<'a, T, Tag> 
     }
 }
 
-impl<T, Tag: 'static> MappedIndex for CategoricalIndex<T, Tag> {
+impl<T, Tag: 'static> VariableRange for CategoricalIndex<T, Tag> {
     type Value<'a>
         = CategoricalValue<'a, T, Tag>
     where
@@ -188,7 +188,7 @@ impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::MappedIndex;
+    use crate::mapped_index::VariableRange;
 
     struct Tag;
 

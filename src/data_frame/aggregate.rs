@@ -2,7 +2,7 @@
 use super::core::DataFrame;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple, IndexTuple};
-use crate::mapped_index::MappedIndex;
+use crate::mapped_index::VariableRange;
 use crate::tuple_utils::{
     Extract, ExtractAt, ExtractLeft, ExtractRemainder, ExtractRight, TupleConcat, TupleExtract,
 };
@@ -26,7 +26,7 @@ where
         Indices: TupleExtract<N>,
         <Indices as TupleExtract<N>>::Before: TupleConcat,
         ExtractLeft<N, Indices>: IndexTuple,
-        Extract<N, Indices>: MappedIndex,
+        Extract<N, Indices>: VariableRange,
         ExtractRemainder<N, Indices>: IndexTuple,
         ExtractRight<N, Indices>: IndexTuple,
     {
@@ -56,7 +56,7 @@ where
         <Indices as TupleExtract<N>>::Before: TupleConcat,
         F: for<'a> Fn(StridedIndexView<'a, D>) -> R,
         ExtractLeft<N, Indices>: IndexTuple,
-        Extract<N, Indices>: MappedIndex,
+        Extract<N, Indices>: VariableRange,
         ExtractRemainder<N, Indices>: IndexTuple,
         ExtractRight<N, Indices>: IndexTuple,
     {
@@ -100,7 +100,7 @@ where
         D::Output: Copy + Zero + std::ops::AddAssign + std::ops::Div<f64>,
         <D::Output as std::ops::Div<f64>>::Output: Copy,
         ExtractLeft<N, Indices>: IndexTuple,
-        Extract<N, Indices>: MappedIndex,
+        Extract<N, Indices>: VariableRange,
         ExtractRemainder<N, Indices>: IndexTuple,
         ExtractRight<N, Indices>: IndexTuple,
     {

@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use super::VariableRange;
 use std::marker::PhantomData;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
@@ -71,7 +71,7 @@ impl<I: PartialEq, T> PartialEq for SparseNumericValue<I, T> {
 }
 impl<I: Eq, T> Eq for SparseNumericValue<I, T> {}
 
-impl<I: Copy + 'static, T: 'static> MappedIndex for SparseNumericIndex<I, T> {
+impl<I: Copy + 'static, T: 'static> VariableRange for SparseNumericIndex<I, T> {
     type Value<'a> = SparseNumericValue<I, T>;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {

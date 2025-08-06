@@ -1,4 +1,4 @@
-use super::MappedIndex;
+use super::VariableRange;
 use std::marker::PhantomData;
 
 /// A value in a numeric range index, representing a position in the range.
@@ -89,7 +89,7 @@ where
     }
 }
 
-impl<I, T> MappedIndex for NumericRangeIndex<I, T>
+impl<I, T> VariableRange for NumericRangeIndex<I, T>
 where
     I: Copy
         + PartialOrd
@@ -163,7 +163,7 @@ impl<'idx, I: std::fmt::Debug, T> NumericValue<I, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::MappedIndex;
+    use crate::mapped_index::VariableRange;
     #[test]
     fn test_flat_index_round_trip() {
         let _range: NumericRangeIndex<i32, ()> = NumericRangeIndex::new(10, 20);

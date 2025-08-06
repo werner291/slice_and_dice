@@ -3,7 +3,7 @@ use super::core::DataFrame;
 use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range_index::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::{SparseNumericIndex, SparseNumericValue};
-use crate::mapped_index::MappedIndex;
+use crate::mapped_index::VariableRange;
 use std::cmp::Ordering;
 use std::ops::Index;
 
@@ -31,7 +31,7 @@ pub enum ExtrapolationMethod {
 
 impl<I, D> DataFrame<I, D>
 where
-    I: MappedIndex + Clone + PartialEq + 'static,
+    I: VariableRange + Clone + PartialEq + 'static,
     D: Index<usize>,
     D::Output: Clone,
 {
