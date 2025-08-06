@@ -2,25 +2,10 @@ use super::VariableRange;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseNumericIndex<I> {
     pub indices: Vec<I>,
 }
-
-impl<I: Clone> Clone for SparseNumericIndex<I> {
-    fn clone(&self) -> Self {
-        Self {
-            indices: self.indices.clone(),
-        }
-    }
-}
-
-impl<I: PartialEq> PartialEq for SparseNumericIndex<I> {
-    fn eq(&self, other: &Self) -> bool {
-        self.indices == other.indices
-    }
-}
-impl<I: Eq> Eq for SparseNumericIndex<I> {}
 
 impl<I: PartialOrd + Copy> SparseNumericIndex<I> {
     /// Create a new SparseNumericIndex from a Vec. Panics if not sorted.
@@ -33,17 +18,10 @@ impl<I: PartialOrd + Copy> SparseNumericIndex<I> {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SparseNumericValue<I> {
     pub value: I,
     pub index: usize,
-}
-
-impl<I: Copy> Copy for SparseNumericValue<I> {}
-impl<I: Copy> Clone for SparseNumericValue<I> {
-    fn clone(&self) -> Self {
-        *self
-    }
 }
 
 impl<I: Copy> SparseNumericValue<I> {
@@ -52,13 +30,6 @@ impl<I: Copy> SparseNumericValue<I> {
         Self { value, index }
     }
 }
-
-impl<I: PartialEq> PartialEq for SparseNumericValue<I> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.index == other.index
-    }
-}
-impl<I: Eq> Eq for SparseNumericValue<I> {}
 
 impl<I: Copy + 'static> VariableRange for SparseNumericIndex<I> {
     type Value<'a> = SparseNumericValue<I>;

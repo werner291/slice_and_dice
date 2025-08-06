@@ -29,28 +29,13 @@ where
 /// The mapping function should be fairly straightforward and reasonably cheap, as it will be called
 /// frequently during index operations.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FnMapIndex<I, F, O> {
     /// The underlying index.
     pub index: I,
     /// The mapping function.
     pub map_fn: F,
     _phantom: PhantomData<O>,
-}
-
-impl<I, F, O> Clone for FnMapIndex<I, F, O>
-where
-    I: VariableRange + Clone,
-    F: Fn(I::Value<'_>) -> O + Clone,
-    O: Copy + std::fmt::Debug,
-{
-    fn clone(&self) -> Self {
-        Self {
-            index: self.index.clone(),
-            map_fn: self.map_fn.clone(),
-            _phantom: PhantomData,
-        }
-    }
 }
 
 impl<I, F, O> PartialEq for FnMapIndex<I, F, O>

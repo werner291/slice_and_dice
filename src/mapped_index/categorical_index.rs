@@ -25,49 +25,17 @@ impl<'a, T: PartialEq> PartialEq for CategoricalValue<'a, T> {
 impl<'a, T: Eq> Eq for CategoricalValue<'a, T> {}
 
 /// An index for categorical values, mapping indices to values of type `T`.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CategoricalRange<T> {
     /// The values stored in the index.
     pub values: Vec<T>,
 }
 
 /// An index for categorical values, mapping indices to values of type `T` using a slice.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SliceCategoricalIndex<'a, T> {
     /// The values stored in the index.
     pub values: &'a [T],
-}
-
-impl<T: Clone> Clone for CategoricalRange<T> {
-    fn clone(&self) -> Self {
-        Self {
-            values: self.values.clone(),
-        }
-    }
-}
-
-impl<T: Eq> Eq for CategoricalRange<T> {}
-
-impl<T: PartialEq> PartialEq<Self> for CategoricalRange<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.values == other.values
-    }
-}
-
-impl<'a, T: Clone> Clone for SliceCategoricalIndex<'a, T> {
-    fn clone(&self) -> Self {
-        Self {
-            values: self.values,
-        }
-    }
-}
-
-impl<'a, T: Eq> Eq for SliceCategoricalIndex<'a, T> {}
-
-impl<'a, T: PartialEq> PartialEq<Self> for SliceCategoricalIndex<'a, T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.values == other.values
-    }
 }
 
 impl<'a, T: 'a> SliceCategoricalIndex<'a, T> {
