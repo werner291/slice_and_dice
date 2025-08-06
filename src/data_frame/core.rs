@@ -42,7 +42,7 @@ where
 
 impl<I, D> DataFrame<I, D>
 where
-    I: MappedIndex + Clone,
+    I: MappedIndex,
     D: Index<usize> + IntoIterator,
 {
     /// Construct a new DataFrame from index and data.
