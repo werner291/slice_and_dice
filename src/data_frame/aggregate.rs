@@ -122,7 +122,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
     use peano::P1;
 
     #[derive(Debug)]

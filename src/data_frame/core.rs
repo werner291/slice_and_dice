@@ -1,6 +1,6 @@
 //! Core DataFrame struct and basic methods.
 use crate::mapped_index::compound_index::{CompoundIndex, IndexRefTuple};
-use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+use crate::mapped_index::numeric_range::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use crate::mapped_index::VariableRange;
 #[cfg(feature = "rayon")]
@@ -15,7 +15,7 @@ use std::ops::Index;
 /// # Example
 /// ```
 /// use slice_and_dice::data_frame::core::DataFrame;
-/// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+/// use slice_and_dice::mapped_index::numeric_range::{NumericRangeIndex, NumericRange};
 /// // Tag type to mark the index dimension
 /// #[derive(Debug)]
 /// struct Row;
@@ -24,7 +24,7 @@ use std::ops::Index;
 /// let df = DataFrame::new(index.clone(), data.clone());
 /// assert_eq!(df.index, index);
 /// assert_eq!(df.data, data);
-/// assert_eq!(*df.get(NumericValue::new(1)), 20);
+/// assert_eq!(*df.get(NumericRange::new(1)), 20);
 /// assert_eq!(*df.get_flat(2), 30);
 /// ```
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -50,7 +50,7 @@ where
     /// # Example
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
     /// // Tag type to mark the index dimension
     /// #[derive(Debug)]
     /// struct Row;
@@ -69,7 +69,7 @@ where
     /// # Example
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
     /// // Tag type to mark the index dimension
     /// #[derive(Debug)]
     /// struct Row;
@@ -89,14 +89,14 @@ where
     /// # Example
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// use slice_and_dice::mapped_index::numeric_range::{NumericRangeIndex, NumericRange};
     /// #[derive(Debug)]
     /// struct Row;
     /// let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![10, 20, 30]);
     /// let pairs: Vec<_> = df.iter().collect();
-    /// assert_eq!(pairs[0], (NumericValue::new(0), &10));
-    /// assert_eq!(pairs[1], (NumericValue::new(1), &20));
-    /// assert_eq!(pairs[2], (NumericValue::new(2), &30));
+    /// assert_eq!(pairs[0], (NumericRange::new(0), &10));
+    /// assert_eq!(pairs[1], (NumericRange::new(1), &20));
+    /// assert_eq!(pairs[2], (NumericRange::new(2), &30));
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
         self.index
@@ -115,7 +115,7 @@ where
     /// # Example
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
     /// #[derive(Debug)]
     /// struct Row;
     /// let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![1, 2, 3]);
@@ -139,7 +139,7 @@ where
     /// # Example
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// use slice_and_dice::mapped_index::numeric_range::{NumericRangeIndex, NumericRange};
     /// #[derive(Debug)]
     /// struct Row;
     /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
@@ -168,7 +168,7 @@ where
     /// # #[cfg(feature = "rayon")]
     /// # {
     /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    /// use slice_and_dice::mapped_index::numeric_range::{NumericRangeIndex, NumericRange};
     /// #[derive(Debug)]
     /// struct Row;
     /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
@@ -207,7 +207,7 @@ where
     /// ```
     /// use slice_and_dice::data_frame::core::DataFrame;
     /// use slice_and_dice::mapped_index::compound_index::CompoundIndex;
-    /// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+    /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
     /// #[derive(Debug)]
     /// struct Tag;
     /// let index = CompoundIndex { indices: (NumericRangeIndex::<i32, Tag>::new(0, 3),) };
@@ -229,7 +229,7 @@ where
 /// # Example
 /// ```
 /// use slice_and_dice::data_frame::core::DataFrameFromNumericExt;
-/// use slice_and_dice::mapped_index::numeric_range_index::NumericRangeIndex;
+/// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
 /// // Tag type to mark the index dimension
 /// #[derive(Debug)]
 /// struct Row;
@@ -314,7 +314,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+    use crate::mapped_index::numeric_range::{NumericRange, NumericRangeIndex};
 
     #[derive(Debug)]
     struct Tag;
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn test_map() {
         use crate::data_frame::core::DataFrame;
-        use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+        use crate::mapped_index::numeric_range::NumericRangeIndex;
         #[derive(Debug, PartialEq)]
         struct Row;
         let df = DataFrame::new(NumericRangeIndex::<i32, Row>::new(0, 3), vec![1, 2, 3]);
@@ -353,7 +353,7 @@ mod tests {
     #[test]
     fn test_collapse_single_index() {
         use crate::mapped_index::compound_index::CompoundIndex;
-        use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+        use crate::mapped_index::numeric_range::NumericRangeIndex;
         #[derive(Debug, PartialEq)]
         struct Tag;
         let index = CompoundIndex {
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_build_from_index() {
-        use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+        use crate::mapped_index::numeric_range::{NumericRange, NumericRangeIndex};
         #[derive(Debug, PartialEq)]
         struct Row;
         let index = NumericRangeIndex::<i32, Row>::new(0, 3);
@@ -382,7 +382,7 @@ mod tests {
     #[cfg(feature = "rayon")]
     #[test]
     fn test_build_from_index_par() {
-        use crate::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
+        use crate::mapped_index::numeric_range::{NumericRange, NumericRangeIndex};
         #[derive(Debug, PartialEq)]
         struct Row;
         let index = NumericRangeIndex::<i32, Row>::new(0, 3);

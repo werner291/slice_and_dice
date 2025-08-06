@@ -1,7 +1,7 @@
 //! Stacking logic for DataFrame.
 use super::core::DataFrame;
 use crate::mapped_index::compound_index::CompoundIndex;
-use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+use crate::mapped_index::numeric_range::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::{SparseNumericIndex, SparseNumericValue};
 use crate::mapped_index::VariableRange;
 use std::cmp::Ordering;
@@ -202,7 +202,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::numeric_range_index::NumericRangeIndex;
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
     use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 
     #[derive(Debug)]

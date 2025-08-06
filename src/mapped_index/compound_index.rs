@@ -149,7 +149,7 @@ where
 mod tests {
     use super::*;
     use crate::mapped_index::{
-        categorical_index::CategoricalIndex, numeric_range_index::NumericRangeIndex, VariableRange,
+        categorical_index::CategoricalRange, numeric_range::NumericRangeIndex, VariableRange,
     };
 
     #[derive(Debug)]
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_compound_index_size_categorical_numeric() {
-        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
         let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
         assert_eq!(VariableRange::size(&ci), 2 * 3);
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_compound_index_iter_categorical_numeric() {
-        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
         let num = NumericRangeIndex::<i32, NumTag>::new(0, 2);
         let ci = CompoundIndex::new((cat.clone(), num.clone()));
         let items: Vec<_> = ci.iter().collect();
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_unflatten_index_values_categorical_numeric() {
-        let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
+        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
         let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
 

@@ -1,14 +1,14 @@
 use super::VariableRange;
 
-/// An index representing a single value.
+/// A range of a single value.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct SingletonIndex<T> {
+pub struct SingletonRange<T> {
     /// The value of type T.
     pub value: T,
 }
 
-impl<T> SingletonIndex<T> {
+impl<T> SingletonRange<T> {
     /// Create a new SingletonIndex with the given value.
     pub const fn new(value: T) -> Self {
         Self { value }
@@ -20,7 +20,7 @@ impl<T> SingletonIndex<T> {
     }
 }
 
-impl<T> VariableRange for SingletonIndex<T> {
+impl<T> VariableRange for SingletonRange<T> {
     type Value<'a>
         = &'a T
     where
@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_singleton_index() {
-        let index = SingletonIndex::<()>::new(());
+        let index = SingletonRange::<()>::new(());
         assert_eq!(index.size(), 1);
 
         let value = index.value();
@@ -67,7 +67,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Index out of bounds: 1 (expected 0)")]
     fn test_out_of_bounds() {
-        let index = SingletonIndex::<()>::new(());
+        let index = SingletonRange::<()>::new(());
         index.unflatten_index_value(1); // Should panic
     }
 }

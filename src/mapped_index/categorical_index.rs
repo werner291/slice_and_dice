@@ -28,7 +28,7 @@ impl<'a, T: Eq, Tag> Eq for CategoricalValue<'a, T, Tag> {}
 
 /// An index for categorical values, mapping indices to values of type `T`.
 #[derive(Debug)]
-pub struct CategoricalIndex<T, Tag> {
+pub struct CategoricalRange<T, Tag> {
     /// The values stored in the index.
     pub values: Vec<T>,
     pub _phantom: PhantomData<Tag>,
@@ -42,7 +42,7 @@ pub struct SliceCategoricalIndex<'a, T, Tag> {
     pub _phantom: PhantomData<Tag>,
 }
 
-impl<T: Clone, Tag> Clone for CategoricalIndex<T, Tag> {
+impl<T: Clone, Tag> Clone for CategoricalRange<T, Tag> {
     fn clone(&self) -> Self {
         Self {
             values: self.values.clone(),
@@ -51,9 +51,9 @@ impl<T: Clone, Tag> Clone for CategoricalIndex<T, Tag> {
     }
 }
 
-impl<T: Eq, Tag: 'static> Eq for CategoricalIndex<T, Tag> {}
+impl<T: Eq, Tag: 'static> Eq for CategoricalRange<T, Tag> {}
 
-impl<T: PartialEq, Tag: 'static> PartialEq<Self> for CategoricalIndex<T, Tag> {
+impl<T: PartialEq, Tag: 'static> PartialEq<Self> for CategoricalRange<T, Tag> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
     }
@@ -114,7 +114,7 @@ impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag
     }
 }
 
-impl<T, Tag: 'static> VariableRange for CategoricalIndex<T, Tag> {
+impl<T, Tag: 'static> VariableRange for CategoricalRange<T, Tag> {
     type Value<'a>
         = CategoricalValue<'a, T, Tag>
     where
@@ -145,7 +145,7 @@ impl<T, Tag: 'static> VariableRange for CategoricalIndex<T, Tag> {
     }
 }
 
-impl<T, Tag> CategoricalIndex<T, Tag> {
+impl<T, Tag> CategoricalRange<T, Tag> {
     /// Create a new CategoricalIndex from a vector of values.
     pub const fn new(values: Vec<T>) -> Self {
         Self {
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_unflatten_index_value() {
-        let index = CategoricalIndex {
+        let index = CategoricalRange {
             values: vec![1, 2, 3],
             _phantom: PhantomData::<Tag>,
         };
