@@ -117,13 +117,6 @@ where
         })
     }
 
-    /// Returns the flat index for a numeric value (its position in the range).
-    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
-        let idx: usize = value.index.try_into().unwrap();
-        let start: usize = self.start.try_into().unwrap();
-        idx - start
-    }
-
     /// Returns the numeric value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         NumericValue {

@@ -64,24 +64,6 @@ where
         Self { index, data }
     }
 
-    /// Get a reference to the data for a given index value.
-    ///
-    /// # Example
-    /// ```
-    /// use slice_and_dice::data_frame::core::DataFrame;
-    /// use slice_and_dice::mapped_index::numeric_range_index::{NumericRangeIndex, NumericValue};
-    /// // Tag type to mark the index dimension
-    /// #[derive(Debug)]
-    /// struct Row;
-    /// let index = NumericRangeIndex::<i32, Row>::new(0, 3);
-    /// let data = vec![10, 20, 30];
-    /// let df = DataFrame::new(index, data);
-    /// assert_eq!(*df.get(NumericValue::new(1)), 20);
-    /// ```
-    pub fn get<'a>(&'a self, value: I::Value<'a>) -> &'a D::Output {
-        &self.data[self.index.flatten_index_value(value)]
-    }
-
     /// Get a reference to the data for a given flat index.
     ///
     /// # Example
@@ -336,22 +318,6 @@ mod tests {
 
     #[derive(Debug)]
     struct Tag;
-
-    // Removed test_new, test_get, test_get_flat (now doctests)
-
-    #[test]
-    fn test_nonzero_start_index() {
-        let index = NumericRangeIndex::<i32, Tag>::new(5, 8); // Range: 5, 6, 7
-        let data = vec![100, 200, 300];
-        let df = DataFrame::new(index.clone(), data.clone());
-        assert_eq!(df.index, index);
-        assert_eq!(df.data, data);
-        assert_eq!(*df.get(NumericValue::new(5)), 100);
-        assert_eq!(*df.get(NumericValue::new(6)), 200);
-        assert_eq!(*df.get(NumericValue::new(7)), 300);
-        assert_eq!(*df.get_flat(0), 100);
-        assert_eq!(*df.get_flat(2), 300);
-    }
 
     #[test]
     fn test_from_iter_numeric() {

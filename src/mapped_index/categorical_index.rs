@@ -76,6 +76,13 @@ impl<'a, T: PartialEq, Tag: 'static> PartialEq<Self> for SliceCategoricalIndex<'
     }
 }
 
+impl<'a, T: 'a, Tag: 'static> SliceCategoricalIndex<'a, T, Tag> {
+    /// Returns the flat index for a categorical value (its position).
+    pub(crate) fn flatten_index_value<'b>(&'b self, value: CategoricalValue<'b, T, Tag>) -> usize {
+        value.index
+    }
+}
+
 impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag> {
     type Value<'b>
         = CategoricalValue<'b, T, Tag>
@@ -92,10 +99,6 @@ impl<'a, T: 'a, Tag: 'static> VariableRange for SliceCategoricalIndex<'a, T, Tag
                 index,
                 _phantom: PhantomData,
             })
-    }
-    /// Returns the flat index for a categorical value (its position).
-    fn flatten_index_value<'b>(&'b self, value: Self::Value<'b>) -> usize {
-        value.index
     }
     /// Returns the categorical value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
@@ -127,10 +130,6 @@ impl<T, Tag: 'static> VariableRange for CategoricalIndex<T, Tag> {
                 index,
                 _phantom: PhantomData,
             })
-    }
-    /// Returns the flat index for a categorical value (its position).
-    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
-        value.index
     }
     /// Returns the categorical value for a given flat index.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
@@ -193,30 +192,26 @@ mod tests {
     struct Tag;
 
     #[test]
-    fn test_flat_index_round_trip() {
+    fn test_unflatten_index_value() {
         let index = CategoricalIndex {
             values: vec![1, 2, 3],
             _phantom: PhantomData::<Tag>,
         };
         let cat_val = index.unflatten_index_value(2);
-        let flat = index.flatten_index_value(cat_val);
-        let round = index.unflatten_index_value(flat);
-        assert_eq!(cat_val.index, round.index);
-        assert_eq!(*cat_val.value, *round.value);
+        assert_eq!(*cat_val.value, 3);
+        assert_eq!(cat_val.index, 2);
     }
 
     #[test]
-    fn test_slice_flat_index_round_trip() {
+    fn test_slice_unflatten_index_value() {
         let values = [1, 2, 3];
         let index = SliceCategoricalIndex {
             values: &values,
             _phantom: PhantomData::<Tag>,
         };
         let cat_val = index.unflatten_index_value(2);
-        let flat = index.flatten_index_value(cat_val);
-        let round = index.unflatten_index_value(flat);
-        assert_eq!(cat_val.index, round.index);
-        assert_eq!(*cat_val.value, *round.value);
+        assert_eq!(*cat_val.value, 3);
+        assert_eq!(cat_val.index, 2);
     }
 
     #[test]

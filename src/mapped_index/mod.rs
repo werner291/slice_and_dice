@@ -17,13 +17,6 @@ pub trait VariableRange {
     /// Returns an iterator over all values in the index.
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone;
 
-    /// Returns the flat numeric index for the given value. Panics if the value is not found.
-    ///
-    /// # Panics
-    ///
-    /// Implementations must panic if the value is not present in the index.
-    fn flatten_index_value<'a>(&'a self, value: Self::Value<'a>) -> usize;
-
     /// Returns the value for the given flat numeric index.
     ///
     /// # Panics

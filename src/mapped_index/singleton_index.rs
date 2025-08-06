@@ -31,11 +31,6 @@ impl<T> VariableRange for SingletonIndex<T> {
         std::iter::once(&self.value)
     }
 
-    /// Returns the flat index for the singleton value (always 0).
-    fn flatten_index_value(&self, _value: Self::Value<'_>) -> usize {
-        0
-    }
-
     /// Returns the singleton value for a given flat index.
     /// Panics if the index is not 0.
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
@@ -62,8 +57,8 @@ mod tests {
         assert_eq!(index.size(), 1);
 
         let value = index.value();
-        let flat = index.flatten_index_value(value);
-        assert_eq!(flat, 0);
+        // For a singleton index, the flat index is always 0
+        let flat = 0;
 
         let round_trip = index.unflatten_index_value(flat);
         assert_eq!(value, round_trip);

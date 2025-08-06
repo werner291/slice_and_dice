@@ -81,10 +81,6 @@ impl<I: Copy + 'static, T: 'static> VariableRange for SparseNumericIndex<I, T> {
             .map(move |(index, v)| SparseNumericValue::new(*v, index))
     }
 
-    fn flatten_index_value(&self, value: Self::Value<'_>) -> usize {
-        value.index
-    }
-
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         SparseNumericValue::new(self.indices[index], index)
     }
@@ -115,7 +111,7 @@ mod tests {
         let val = idx.unflatten_index_value(1);
         assert_eq!(val.value, 10);
         assert_eq!(val.index, 1);
-        let flat = idx.flatten_index_value(val);
-        assert_eq!(flat, 1);
+        // For SparseNumericValue, the flat index is stored in the value.index field
+        assert_eq!(val.index, 1);
     }
 }

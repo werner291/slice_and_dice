@@ -33,8 +33,6 @@ pub trait IndexRefTuple<'a>: Tuple + Copy {
 
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
 
-    fn flatten_index_value(self, v: Self::Value) -> usize;
-
     fn unflatten_index_value(self, index: usize) -> Self::Value;
 
     fn size(self) -> usize;
@@ -55,10 +53,6 @@ impl<'a> IndexRefTuple<'a> for () {
 
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
         std::iter::once(())
-    }
-
-    fn flatten_index_value(self, _v: Self::Value) -> usize {
-        0
     }
 
     fn unflatten_index_value(self, _index: usize) -> Self::Value {
@@ -89,14 +83,6 @@ where
     fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
         let (h, t) = TupleFirstElement::split_first(self);
         VariableRange::iter(h).flat_map(move |hv| t.iter().map(move |tv| tv.prepend(hv)))
-    }
-
-    fn flatten_index_value(self, v: Self::Value) -> usize {
-        let (h, t) = self.split_first();
-        let (vh, vt) = v.split_first();
-        let h_flat = h.flatten_index_value(vh);
-        let t_flat = t.flatten_index_value(vt);
-        h_flat * t.size() + t_flat
     }
 
     fn unflatten_index_value(self, index: usize) -> Self::Value {
@@ -150,10 +136,6 @@ where
         self.indices.as_ref_tuple().iter()
     }
 
-    fn flatten_index_value<'a>(&'a self, v: Self::Value<'a>) -> usize {
-        self.indices.as_ref_tuple().flatten_index_value(v)
-    }
-
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
         self.indices.as_ref_tuple().unflatten_index_value(index)
     }
@@ -197,14 +179,16 @@ mod tests {
     }
 
     #[test]
-    fn test_flatten_unflatten_round_trip_categorical_numeric() {
+    fn test_unflatten_index_values_categorical_numeric() {
         let cat = CategoricalIndex::<i32, CatTag>::new(vec![10, 20]);
         let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
-        for v in ci.iter() {
-            let flat = ci.flatten_index_value(v);
-            let round = ci.unflatten_index_value(flat);
-            assert_eq!(v, round);
+
+        // Test that all indices within the size range return valid values
+        for i in 0..ci.size() {
+            let value = ci.unflatten_index_value(i);
+            // Verify the value is one of the expected values from the iterator
+            assert!(ci.iter().any(|v| v == value));
         }
     }
 }

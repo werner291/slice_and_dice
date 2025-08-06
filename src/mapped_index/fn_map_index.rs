@@ -110,11 +110,6 @@ where
         })
     }
 
-    /// Returns the flat index for a mapped value.
-    fn flatten_index_value<'a>(&'a self, value: Self::Value<'a>) -> usize {
-        value.flat_index
-    }
-
     /// Returns the mapped value for a given flat index.
     fn unflatten_index_value<'a>(&'a self, index: usize) -> Self::Value<'a> {
         if index >= self.index.size() {
@@ -160,12 +155,9 @@ mod tests {
         assert_eq!(values[0].mapped, (0, 0));
         assert_eq!(values[9].mapped, (9, 18));
 
-        // Test flatten_index_value and unflatten_index_value
+        // Test unflatten_index_value
         let value = fn_map_index.unflatten_index_value(5);
         assert_eq!(value.flat_index, 5);
         assert_eq!(value.mapped, (5, 10));
-
-        let flat_index = fn_map_index.flatten_index_value(value);
-        assert_eq!(flat_index, 5);
     }
 }
