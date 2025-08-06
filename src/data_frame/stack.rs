@@ -139,7 +139,10 @@ where
                             // Extrapolation case
                             match extrapolation {
                                 ExtrapolationMethod::Nearest => {
-                                    if insert_pos == 0 {
+                                    if df_indices.is_empty() {
+                                        // If the DataFrame has no indices, use the default value
+                                        default_value.clone()
+                                    } else if insert_pos == 0 {
                                         // Use the first value
                                         df.data[0].clone()
                                     } else {
@@ -408,6 +411,55 @@ mod tests {
 
         // Verify data length
         assert_eq!(stacked.data.len(), 48); // 24 indices * 2 DataFrames
+    }
+
+    #[test]
+    fn test_stack_sparse_empty_dataframe() {
+        // Test with an empty DataFrame
+        let empty_indices: Vec<i32> = vec![];
+        let non_empty_indices: Vec<i32> = vec![1, 2, 3];
+
+        let empty_index = SparseNumericIndex::<i32, Tag>::new(empty_indices);
+        let non_empty_index = SparseNumericIndex::<i32, Tag>::new(non_empty_indices);
+
+        let empty_data: Vec<i32> = vec![];
+        let non_empty_data: Vec<i32> = vec![10, 20, 30];
+
+        let empty_df = DataFrame::new(empty_index, empty_data);
+        let non_empty_df = DataFrame::new(non_empty_index, non_empty_data);
+
+        // This should not panic
+        let stacked = DataFrame::stack_sparse::<StackTag>(
+            vec![empty_df.clone(), non_empty_df.clone()],
+            InterpolationMethod::Nearest,
+            ExtrapolationMethod::Default, // Use Default to avoid the panic
+            -999,
+        )
+        .unwrap();
+
+        // The union of indices should be [1, 2, 3]
+        assert_eq!(stacked.index.indices.1.indices, vec![1, 2, 3]);
+
+        // First DataFrame should use default values for all indices
+        // Second DataFrame should use actual values
+        assert_eq!(stacked.data, vec![-999, -999, -999, 10, 20, 30]);
+
+        // This would panic without a fix because it tries to use Nearest extrapolation
+        // on an empty DataFrame, but with our fix it should work correctly
+        let stacked_nearest = DataFrame::stack_sparse::<StackTag>(
+            vec![empty_df, non_empty_df],
+            InterpolationMethod::Nearest,
+            ExtrapolationMethod::Nearest,
+            -999,
+        )
+        .unwrap();
+
+        // The union of indices should be [1, 2, 3]
+        assert_eq!(stacked_nearest.index.indices.1.indices, vec![1, 2, 3]);
+
+        // First DataFrame should use default values for all indices (since it's empty)
+        // Second DataFrame should use actual values
+        assert_eq!(stacked_nearest.data, vec![-999, -999, -999, 10, 20, 30]);
     }
 
     #[test]
