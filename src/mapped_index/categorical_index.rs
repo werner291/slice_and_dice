@@ -38,13 +38,6 @@ pub struct SliceCategoricalIndex<'a, T> {
     pub values: &'a [T],
 }
 
-impl<'a, T: 'a> SliceCategoricalIndex<'a, T> {
-    /// Returns the flat index for a categorical value (its position).
-    pub(crate) fn flatten_index_value<'b>(&'b self, value: CategoricalValue<'b, T>) -> usize {
-        value.index
-    }
-}
-
 impl<'a, T: 'a> VariableRange for SliceCategoricalIndex<'a, T> {
     type Value<'b>
         = CategoricalValue<'b, T>

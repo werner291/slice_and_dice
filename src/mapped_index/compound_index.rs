@@ -152,23 +152,18 @@ mod tests {
         categorical_index::CategoricalRange, numeric_range::NumericRangeIndex, VariableRange,
     };
 
-    #[derive(Debug)]
-    struct CatTag;
-    #[derive(Debug)]
-    struct NumTag;
-
     #[test]
     fn test_compound_index_size_categorical_numeric() {
-        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
+        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<i32>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
         assert_eq!(VariableRange::size(&ci), 2 * 3);
     }
 
     #[test]
     fn test_compound_index_iter_categorical_numeric() {
-        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32, NumTag>::new(0, 2);
+        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<i32>::new(0, 2);
         let ci = CompoundIndex::new((cat.clone(), num.clone()));
         let items: Vec<_> = ci.iter().collect();
         assert_eq!(items.len(), 4);
@@ -180,8 +175,8 @@ mod tests {
 
     #[test]
     fn test_unflatten_index_values_categorical_numeric() {
-        let cat = CategoricalRange::<i32, CatTag>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32, NumTag>::new(0, 3);
+        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
+        let num = NumericRangeIndex::<i32>::new(0, 3);
         let ci = CompoundIndex::new((cat, num));
 
         // Test that all indices within the size range return valid values
