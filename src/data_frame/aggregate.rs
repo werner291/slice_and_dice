@@ -83,19 +83,20 @@ impl<Indices: IndexHlist, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
 where
     D::Output: Clone,
 {
-    // /// Iterate over the dimension specified by typenum.
-    // ///
-    // /// Returns an iterator that yields StridedIndexViews for each combination of indices
-    // /// except the dimension being iterated over.
-    // pub fn iter_over_dim<'a, Idx>(&'a self) -> impl Iterator<Item = (<<Indices::Refs<'a> as PluckSplit<Idx>>::Extract as VariableRange>::Value<'a>,StridedIndexView<'a, D>)> + 'a
-    // where
-    //     Indices::Refs<'a>: PluckSplit<Idx>,
-    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
-    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Extract: VariableRange + 'a,
-    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
-    // {
-    //     todo!()
-    // }
+    /// Iterate over the dimension specified by typenum.
+    ///
+    /// Returns an iterator that yields StridedIndexViews for each combination of indices
+    /// except the dimension being iterated over.
+    pub fn iter_over_dim<'a, Idx, Middle: VariableRange>(
+        &'a self,
+    ) -> DimIter<'a, Indices, D, Idx, Middle>
+    where
+        for<'b> Indices::Refs<'b>: PluckSplit<Idx, Extract = &'a Middle>,
+        for<'b> <Indices::Refs<'b> as PluckSplit<Idx>>::Left: RefIndexHList,
+        for<'b> <Indices::Refs<'b> as PluckSplit<Idx>>::Right: RefIndexHList,
+    {
+        DimIter::<Indices, D, Idx, Middle>::new(self)
+    }
 
     /// Aggregate over the dimension specified by typenum.
     pub fn aggregate_over_dim<'a, Idx, F, R>(
@@ -178,5 +179,168 @@ where
                 sum / n as f64
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
+    use frunk::hlist::h_cons;
+    use frunk::indices::{Here, There};
+    use frunk::{HNil, hlist};
+
+    // Test that mean_over_dim works correctly (which uses iter_over_dim internally)
+    #[test]
+    fn test_mean_over_dim() {
+        // Create a 2D DataFrame with dimensions 2x3
+        let index1 = NumericRangeIndex::<i32>::new(0, 2); // [0, 1]
+        let index2 = NumericRangeIndex::<i32>::new(10, 13); // [10, 11, 12]
+
+        // Create compound index with both dimensions
+        let indices = h_cons(index1.clone(), h_cons(index2.clone(), HNil));
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data: [10, 20, 30, 40, 50, 60]
+        // This represents a 2x3 matrix:
+        // [10, 20, 30]
+        // [40, 50, 60]
+        let data = vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Calculate mean over first dimension (rows)
+        let mean_rows = df.clone().mean_over_dim::<Here>();
+
+        // Result should be a 1D DataFrame with 3 values: [25, 35, 45]
+        // (average of each column)
+        assert_eq!(mean_rows.data.len(), 3);
+        assert!((mean_rows.data[0] - 25.0).abs() < 1e-10);
+        assert!((mean_rows.data[1] - 35.0).abs() < 1e-10);
+        assert!((mean_rows.data[2] - 45.0).abs() < 1e-10);
+
+        // Calculate mean over second dimension (columns)
+        let mean_cols = df.mean_over_dim::<There<Here>>();
+
+        // Result should be a 1D DataFrame with 2 values: [20, 50]
+        // (average of each row)
+        assert_eq!(mean_cols.data.len(), 2);
+        assert!((mean_cols.data[0] - 20.0).abs() < 1e-10);
+        assert!((mean_cols.data[1] - 50.0).abs() < 1e-10);
+    }
+
+    // Test aggregate_over_dim with a custom aggregation function
+    #[test]
+    fn test_aggregate_over_dim() {
+        // Create a 2D DataFrame with dimensions 2x3
+        let index1 = NumericRangeIndex::<i32>::new(0, 2); // [0, 1]
+        let index2 = NumericRangeIndex::<i32>::new(10, 13); // [10, 11, 12]
+
+        // Create compound index with both dimensions
+        let indices = h_cons(index1.clone(), h_cons(index2.clone(), HNil));
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data: [10, 20, 30, 40, 50, 60]
+        // This represents a 2x3 matrix:
+        // [10, 20, 30]
+        // [40, 50, 60]
+        let data = vec![10, 20, 30, 40, 50, 60];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Calculate sum over first dimension (rows)
+        let sum_rows = df
+            .clone()
+            .aggregate_over_dim::<Here, _, i32>(|view| view.copied().sum());
+
+        // Result should be a 1D DataFrame with 3 values: [50, 70, 90]
+        // (sum of each column)
+        assert_eq!(sum_rows.data.len(), 3);
+        assert_eq!(sum_rows.data[0], 50);
+        assert_eq!(sum_rows.data[1], 70);
+        assert_eq!(sum_rows.data[2], 90);
+
+        // Calculate sum over second dimension (columns)
+        let sum_cols = df.aggregate_over_dim::<There<Here>, _, i32>(|view| view.copied().sum());
+
+        // Result should be a 1D DataFrame with 2 values: [60, 150]
+        // (sum of each row)
+        assert_eq!(sum_cols.data.len(), 2);
+        assert_eq!(sum_cols.data[0], 60);
+        assert_eq!(sum_cols.data[1], 150);
+    }
+
+    // Test with a 3D DataFrame
+    #[test]
+    fn test_aggregate_over_dim_3d() {
+        // Create a 3D DataFrame with dimensions 2x2x2
+        let index1 = NumericRangeIndex::<i32>::new(0, 2); // [0, 1]
+        let index2 = NumericRangeIndex::<i32>::new(10, 12); // [10, 11]
+        let index3 = NumericRangeIndex::<i32>::new(100, 102); // [100, 101]
+
+        // Create compound index with all three dimensions
+        let indices = h_cons(
+            index1.clone(),
+            h_cons(index2.clone(), h_cons(index3.clone(), HNil)),
+        );
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data for a 2x2x2 cube:
+        // [
+        //   [[1, 2], [3, 4]],
+        //   [[5, 6], [7, 8]]
+        // ]
+        // Flattened as: [1, 2, 3, 4, 5, 6, 7, 8]
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Calculate sum over middle dimension
+        let sum_middle = df.aggregate_over_dim::<There<Here>, _, i32>(|view| view.copied().sum());
+
+        // Result should be a 2D DataFrame with 2x2 values: [[4, 6], [12, 14]]
+        // (sum of each slice along the middle dimension)
+        assert_eq!(sum_middle.data.len(), 4);
+        assert_eq!(sum_middle.data[0], 4); // 1 + 3
+        assert_eq!(sum_middle.data[1], 6); // 2 + 4
+        assert_eq!(sum_middle.data[2], 12); // 5 + 7
+        assert_eq!(sum_middle.data[3], 14); // 6 + 8
+    }
+
+    // Test with edge cases
+    #[test]
+    fn test_aggregate_over_dim_edge_cases() {
+        // Test with a dimension of size 1
+        let index1 = NumericRangeIndex::<i32>::new(0, 1); // [0]
+        let index2 = NumericRangeIndex::<i32>::new(10, 13); // [10, 11, 12]
+
+        // Create compound index with both dimensions
+        let indices = h_cons(index1.clone(), h_cons(index2.clone(), HNil));
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data: [100, 101, 102]
+        let data = vec![100, 101, 102];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Calculate sum over first dimension (which has only one value)
+        let sum_rows = df
+            .clone()
+            .aggregate_over_dim::<Here, _, i32>(|view| view.copied().sum());
+
+        // Result should be a 1D DataFrame with 3 values: [100, 101, 102]
+        // (since there's only one row, the sum is just the values themselves)
+        assert_eq!(sum_rows.data.len(), 3);
+        assert_eq!(sum_rows.data[0], 100);
+        assert_eq!(sum_rows.data[1], 101);
+        assert_eq!(sum_rows.data[2], 102);
+
+        // Calculate product over second dimension
+        let product_cols =
+            df.aggregate_over_dim::<There<Here>, _, i32>(|view| view.copied().product());
+
+        // Result should be a 1D DataFrame with 1 value: [100*101*102]
+        assert_eq!(product_cols.data.len(), 1);
+        assert_eq!(product_cols.data[0], 100 * 101 * 102);
     }
 }
