@@ -1,7 +1,7 @@
 use super::VariableRange;
 use std::fmt::Debug;
 
-trait NumericRangeValue: 'static + Copy + Ord + Debug + Sync + Send {
+pub trait NumericRangeValue: 'static + Copy + Ord + Debug + Sync + Send {
     fn next(&self) -> Self;
 
     fn nth_next(&self, n: usize) -> Self;
@@ -36,6 +36,59 @@ impl_numeric_range_value!(u64);
 impl_numeric_range_value!(i64);
 impl_numeric_range_value!(i32);
 impl_numeric_range_value!(u32);
+
+#[macro_export]
+macro_rules! nrange_newtype {
+    ($type:ident, $inner:ty) => {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+        pub struct $type(pub $inner);
+
+        impl $type {
+            pub fn new(inner: $inner) -> Self {
+                Self(inner)
+            }
+        }
+
+        impl NumericRangeValue for $type {
+            fn next(&self) -> Self {
+                Self(self.0.next())
+            }
+
+            fn nth_next(&self, n: usize) -> Self {
+                Self(self.0.nth_next(n))
+            }
+
+            fn distance(&self, other: &Self) -> usize {
+                self.0.distance(&other.0)
+            }
+        }
+    };
+
+    ($type:ident, $inner:ty, $($trait:path),+) => {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, $($trait),+)]
+        pub struct $type(pub $inner);
+
+        impl $type {
+            pub fn new(inner: $inner) -> Self {
+                Self(inner)
+            }
+        }
+
+        impl NumericRangeValue for $type {
+            fn next(&self) -> Self {
+                Self(self.0.next())
+            }
+
+            fn nth_next(&self, n: usize) -> Self {
+                Self(self.0.nth_next(n))
+            }
+
+            fn distance(&self, other: &Self) -> usize {
+                self.0.distance(&other.0)
+            }
+        }
+    };
+}
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
