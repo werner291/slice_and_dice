@@ -47,19 +47,14 @@ where
     }
 }
 
-impl<'a, Indices: IndexHlist, D: Index<usize>, At> Iterator
-    for DimIter<'a, Indices, D, At, <Indices::Refs<'a> as PluckSplit<At>>::Extract>
+impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At> Iterator
+    for DimIter<'a, Indices, D, At, Middle>
 where
-    for<'b> Indices::Refs<'b>: PluckSplit<At>,
+    for<'b> Indices::Refs<'b>: PluckSplit<At, Extract = &'a Middle>,
     for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Left: RefIndexHList,
-    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Extract: VariableRange + 'b,
     for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Right: RefIndexHList,
-    for<'b> <<Indices::Refs<'b> as PluckSplit<At>>::Extract as VariableRange>::Value<'b>: 'a,
 {
-    type Item = (
-        <<Indices::Refs<'a> as PluckSplit<At>>::Extract as VariableRange>::Value<'a>,
-        StridedIndexView<'a, D>,
-    );
+    type Item = (Middle::Value<'a>, StridedIndexView<'a, D>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.l_size * self.m_size * self.r_size {
