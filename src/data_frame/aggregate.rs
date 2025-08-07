@@ -1,4 +1,5 @@
 //! Aggregation logic for DataFrame over a dimension.
+
 use super::core::DataFrame;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::VariableRange;
@@ -7,38 +8,99 @@ use crate::mapped_index::compound_index::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
+use std::marker::PhantomData;
 use std::ops::Index;
+
+// Modify the DimIter struct to use higher-ranked trait bounds
+pub struct DimIter<'a, Indices: IndexHlist, D: Index<usize>, At, Middle> {
+    data: &'a DataFrame<CompoundIndex<Indices>, D>,
+    index: usize,
+    m: &'a Middle,
+    l_size: usize,
+    m_size: usize,
+    r_size: usize,
+    at: PhantomData<At>,
+}
+
+impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At>
+    DimIter<'a, Indices, D, At, Middle>
+where
+    for<'b> Indices::Refs<'b>: PluckSplit<At, Extract = &'a Middle>,
+    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Left: RefIndexHList,
+    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Right: RefIndexHList,
+{
+    pub fn new(data: &'a DataFrame<CompoundIndex<Indices>, D>) -> Self {
+        let (l, m, r) = data.index.indices.refs().pluck_split();
+        let l_size = l.size();
+        let m_size = m.size();
+        let r_size = r.size();
+
+        Self {
+            data,
+            index: 0,
+            m,
+            l_size,
+            m_size,
+            r_size,
+            at: PhantomData,
+        }
+    }
+}
+
+impl<'a, Indices: IndexHlist, D: Index<usize>, At> Iterator
+    for DimIter<'a, Indices, D, At, <Indices::Refs<'a> as PluckSplit<At>>::Extract>
+where
+    for<'b> Indices::Refs<'b>: PluckSplit<At>,
+    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Left: RefIndexHList,
+    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Extract: VariableRange + 'b,
+    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Right: RefIndexHList,
+    for<'b> <<Indices::Refs<'b> as PluckSplit<At>>::Extract as VariableRange>::Value<'b>: 'a,
+{
+    type Item = (
+        <<Indices::Refs<'a> as PluckSplit<At>>::Extract as VariableRange>::Value<'a>,
+        StridedIndexView<'a, D>,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.l_size * self.m_size * self.r_size {
+            let current_index = self.index;
+            self.index += 1;
+
+            // Instead of creating a local middle variable, use the data's indices directly
+            let middle_value = self.m.unflatten_index_value(current_index);
+
+            Some((
+                middle_value,
+                StridedIndexView {
+                    base: current_index,
+                    stride: self.r_size,
+                    n_strides: self.m_size,
+                    view_into: &self.data.data,
+                },
+            ))
+        } else {
+            None
+        }
+    }
+}
 
 impl<Indices: IndexHlist, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
 where
     D::Output: Clone,
 {
-    /// Iterate over the dimension specified by typenum.
-    ///
-    /// Returns an iterator that yields StridedIndexViews for each combination of indices
-    /// except the dimension being iterated over.
-    pub fn iter_over_dim<'a, Idx>(&'a self) -> impl Iterator<Item = StridedIndexView<'a, D>> + 'a
-    where
-        Indices::Refs<'a>: PluckSplit<Idx>,
-        <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
-        <Indices::Refs<'a> as PluckSplit<Idx>>::Extract: VariableRange,
-        <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
-    {
-        let (l, m, r) = self.index.indices.refs().pluck_split();
-        let l_size = l.size();
-        let m_size = m.size();
-        let r_size = r.size();
-        let data = &self.data;
-
-        (0..l_size).flat_map(move |l_i| {
-            (0..r_size).map(move |r_i| StridedIndexView {
-                base: l_i * m_size * r_size + r_i,
-                stride: r_size,
-                n_strides: m_size,
-                view_into: data,
-            })
-        })
-    }
+    // /// Iterate over the dimension specified by typenum.
+    // ///
+    // /// Returns an iterator that yields StridedIndexViews for each combination of indices
+    // /// except the dimension being iterated over.
+    // pub fn iter_over_dim<'a, Idx>(&'a self) -> impl Iterator<Item = (<<Indices::Refs<'a> as PluckSplit<Idx>>::Extract as VariableRange>::Value<'a>,StridedIndexView<'a, D>)> + 'a
+    // where
+    //     Indices::Refs<'a>: PluckSplit<Idx>,
+    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
+    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Extract: VariableRange + 'a,
+    //     <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
+    // {
+    //     todo!()
+    // }
 
     /// Aggregate over the dimension specified by typenum.
     pub fn aggregate_over_dim<'a, Idx, F, R>(
