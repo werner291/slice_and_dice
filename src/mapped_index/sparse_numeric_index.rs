@@ -1,23 +1,21 @@
 use super::VariableRange;
+use sorted_vec::SortedSet;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SparseNumericIndex<I> {
-    pub indices: Vec<I>,
+pub struct SparseNumericIndex<I: Ord> {
+    pub indices: SortedSet<I>,
 }
 
-impl<I: PartialOrd + Copy> SparseNumericIndex<I> {
+impl<I: Ord + Copy> SparseNumericIndex<I> {
     /// Create a new SparseNumericIndex from a Vec. Panics if not sorted.
-    pub fn new(indices: Vec<I>) -> Self {
-        if !indices.windows(2).all(|w| w[0] < w[1]) {
-            panic!("SparseNumericIndex: indices must be strictly increasing");
-        }
+    pub fn new(indices: SortedSet<I>) -> Self {
         Self { indices }
     }
 }
 
-impl<I: Copy + 'static> VariableRange for SparseNumericIndex<I> {
+impl<I: Copy + 'static + Ord> VariableRange for SparseNumericIndex<I> {
     type Value<'a> = I;
 
     fn iter(&self) -> impl Iterator<Item = I> + Clone {
@@ -30,21 +28,5 @@ impl<I: Copy + 'static> VariableRange for SparseNumericIndex<I> {
 
     fn size(&self) -> usize {
         self.indices.len()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_sparse_numeric_index_valid() {
-        let idx = SparseNumericIndex::<i64>::new(vec![1, 3, 7, 10]);
-        assert_eq!(idx.indices, vec![1, 3, 7, 10]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_sparse_numeric_index_invalid() {
-        let _ = SparseNumericIndex::<i64>::new(vec![1, 3, 2, 10]);
     }
 }

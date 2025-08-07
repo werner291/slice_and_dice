@@ -5,6 +5,7 @@ use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range::NumericRangeIndex;
 use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use frunk::{HList, hlist};
+use sorted_vec::SortedSet;
 use std::cmp::Ordering;
 use std::ops::Index;
 
@@ -102,14 +103,10 @@ where
         }
 
         // Create a union of all indices
-        let mut all_indices = Vec::new();
+        let mut all_indices = SortedSet::new();
         for df in &dfs {
             all_indices.extend(df.index.indices.iter().copied());
         }
-
-        // Sort and deduplicate indices
-        all_indices.sort();
-        all_indices.dedup();
 
         // Create a new index from the union
         let union_index = SparseNumericIndex::new(all_indices);

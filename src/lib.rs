@@ -2,7 +2,6 @@
 
 pub mod data_frame;
 pub mod mapped_index;
-pub mod tuple_utils;
 
 /// The main DataFrame type for associating an index with data.
 pub use crate::data_frame::core::DataFrame;

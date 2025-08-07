@@ -5,10 +5,8 @@ use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::{
     CompoundIndex, HLConcat, HListConcat, IndexHlist, PluckSplit, RefIndexHList,
 };
-use frunk::hlist::Plucker;
 use itertools::Itertools;
-use num_traits::{FromPrimitive, Zero};
-use peano::NonNeg;
+use num_traits::Zero;
 use std::ops::Index;
 
 impl<Indices: IndexHlist, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
