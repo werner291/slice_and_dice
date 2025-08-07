@@ -79,10 +79,9 @@ impl<Head: VariableRange, Tail: IndexHlist> IndexHlist for HCons<Head, Tail> {
         Self: 'a;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        self.head
-            .iter()
-            .zip(self.tail.iter())
-            .map(|(head, tail)| h_cons(head, tail))
+        let head_iter = self.head.iter();
+
+        head_iter.flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
     }
 
     fn refs(&self) -> Self::Refs<'_> {
@@ -204,5 +203,131 @@ impl<Indices: IndexHlist> VariableRange for CompoundIndex<Indices> {
 
     fn size(&self) -> usize {
         self.indices.size()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mapped_index::VariableRange;
+    use crate::mapped_index::categorical_index::{CategoricalRange, SliceCategoricalIndex};
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
+    use crate::mapped_index::singleton_index::SingletonRange;
+    use frunk::hlist::HNil;
+
+    #[test]
+    fn test_compound_index_size() {
+        // Test with a single index
+        let singleton = SingletonRange::new(42);
+        let indices = h_cons(singleton.clone(), HNil);
+        let compound_single = CompoundIndex::new(indices);
+        assert_eq!(compound_single.size(), 1);
+
+        // Test with two indices
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton.clone(), h_cons(categorical.clone(), HNil));
+        let compound_two = CompoundIndex::new(indices);
+        assert_eq!(compound_two.size(), 3); // 1 * 3 = 3
+
+        // Test with three indices
+        let categorical2 = CategoricalRange::new(vec!["a", "b"]);
+        let indices = h_cons(singleton, h_cons(categorical, h_cons(categorical2, HNil)));
+        let compound_three = CompoundIndex::new(indices);
+        assert_eq!(compound_three.size(), 6); // 1 * 3 * 2 = 6
+    }
+
+    #[test]
+    fn test_compound_index_iteration() {
+        // Test with a single index
+        let singleton = SingletonRange::new(42);
+        let indices = h_cons(singleton.clone(), HNil);
+        let compound_single = CompoundIndex::new(indices);
+
+        let values: Vec<_> = compound_single.iter().collect();
+        assert_eq!(values.len(), 1);
+        assert_eq!(*values[0].head, 42);
+
+        // Test with two indices
+        // With the fixed implementation, we get all combinations of values
+        // For a singleton (1 value) and a categorical index (3 values), we get 3 values
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound_two = CompoundIndex::new(indices);
+
+        let values: Vec<_> = compound_two.iter().collect();
+        assert_eq!(values.len(), 3); // 1 * 3 = 3
+
+        // Check the values
+        assert_eq!(*values[0].head, 42); // First index value
+        assert_eq!(*values[0].tail.head, 1); // First combination
+
+        assert_eq!(*values[1].head, 42); // First index value
+        assert_eq!(*values[1].tail.head, 2); // Second combination
+
+        assert_eq!(*values[2].head, 42); // First index value
+        assert_eq!(*values[2].tail.head, 3); // Third combination
+    }
+
+    #[test]
+    fn test_compound_index_unflatten() {
+        // Test with two indices
+        let singleton = SingletonRange::new(42);
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound = CompoundIndex::new(indices);
+
+        // Check unflatten_index_value for each index
+        let value0 = compound.unflatten_index_value(0);
+        assert_eq!(*value0.head, 42);
+        assert_eq!(*value0.tail.head, 1);
+
+        let value1 = compound.unflatten_index_value(1);
+        assert_eq!(*value1.head, 42);
+        assert_eq!(*value1.tail.head, 2);
+
+        let value2 = compound.unflatten_index_value(2);
+        assert_eq!(*value2.head, 42);
+        assert_eq!(*value2.tail.head, 3);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_compound_index_unflatten_out_of_bounds() {
+        let singleton = SingletonRange::new(42);
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound = CompoundIndex::new(indices);
+
+        // This should panic because the index is out of bounds
+        compound.unflatten_index_value(3);
+    }
+
+    #[test]
+    fn test_compound_index_iteration_issue() {
+        // This test reproduces the issue described in the problem statement
+        // Create a SliceCategoricalIndex with two values
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct UseFilter(bool);
+
+        let use_filters = [UseFilter(false), UseFilter(true)];
+        let solvers_vars = SliceCategoricalIndex::new(&use_filters);
+
+        // Create a NumericRangeIndex with multiple values
+        let tree_names_range = NumericRangeIndex::new(0, 3);
+
+        // Create a CompoundIndex with both indices
+        let variables = CompoundIndex::new(h_cons(solvers_vars, h_cons(tree_names_range, HNil)));
+
+        // Check the size
+        assert_eq!(variables.size(), 6); // 2 * 3 = 6
+
+        // Collect all values from the iterator
+        let values: Vec<_> = variables.iter().collect();
+
+        // With the old implementation, we would only get one value due to zip()
+        // assert_eq!(values.len(), 1);
+
+        // With the fixed implementation, we should get 6 values (2 * 3)
+        assert_eq!(values.len(), 6);
     }
 }
