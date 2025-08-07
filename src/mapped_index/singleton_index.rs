@@ -20,7 +20,7 @@ impl<T> SingletonRange<T> {
     }
 }
 
-impl<T> VariableRange for SingletonRange<T> {
+impl<T: Sync + Clone> VariableRange for SingletonRange<T> {
     type Value<'a>
         = &'a T
     where

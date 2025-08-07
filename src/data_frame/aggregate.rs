@@ -54,9 +54,9 @@ where
         Indices: 'a,
         Indices: PluckSplit<Idx>,
         <Indices as PluckSplit<Idx>>::Left:
-            RefIndexHList + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
+            IndexHlist + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
         <Indices as PluckSplit<Idx>>::Extract: VariableRange,
-        <Indices as PluckSplit<Idx>>::Right: RefIndexHList,
+        <Indices as PluckSplit<Idx>>::Right: IndexHlist,
         HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>:
             IndexHlist,
         F: for<'any> Fn(StridedIndexView<'any, D>) -> R,
@@ -101,9 +101,9 @@ where
     where
         Indices: PluckSplit<Idx>,
         <Indices as PluckSplit<Idx>>::Left:
-            RefIndexHList + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
+            IndexHlist + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
         <Indices as PluckSplit<Idx>>::Extract: VariableRange,
-        <Indices as PluckSplit<Idx>>::Right: RefIndexHList,
+        <Indices as PluckSplit<Idx>>::Right: IndexHlist,
         HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>:
             IndexHlist,
         D::Output: Copy + Zero + std::ops::AddAssign + std::ops::Div<f64>,

@@ -71,7 +71,7 @@ where
 
 impl<I, D> DataFrame<SparseNumericIndex<I>, D>
 where
-    I: Copy + PartialOrd + Ord + 'static,
+    I: Copy + PartialOrd + Ord + 'static + Sync,
     D: Index<usize>,
     D::Output: Clone + Default,
 {

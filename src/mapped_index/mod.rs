@@ -7,7 +7,7 @@ pub mod singleton_index;
 pub mod sparse_numeric_index;
 
 /// A trait for types that provide a range of values of a certain variable.
-pub trait VariableRange {
+pub trait VariableRange: Sync + Clone {
     /// The value type stored in the index.
     type Value<'a>: Copy
     where

@@ -15,7 +15,7 @@ impl<I: Ord + Copy> SparseNumericIndex<I> {
     }
 }
 
-impl<I: Copy + 'static + Ord> VariableRange for SparseNumericIndex<I> {
+impl<I: Copy + 'static + Ord + Sync> VariableRange for SparseNumericIndex<I> {
     type Value<'a> = I;
 
     fn iter(&self) -> impl Iterator<Item = I> + Clone {

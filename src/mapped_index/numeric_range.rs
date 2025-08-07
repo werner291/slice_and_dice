@@ -1,8 +1,7 @@
 use super::VariableRange;
 use std::fmt::Debug;
-use std::ops::Range;
 
-trait NumericRangeValue: 'static + Copy + Ord + Debug {
+trait NumericRangeValue: 'static + Copy + Ord + Debug + Sync + Send {
     fn next(&self) -> Self;
 
     fn nth_next(&self, n: usize) -> Self;

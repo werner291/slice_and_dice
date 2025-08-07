@@ -1,7 +1,7 @@
 //! Core DataFrame struct and basic methods.
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::CompoundIndex;
-use frunk::{HCons, HNil};
+use frunk::{HCons, HList, HNil};
 use std::ops::Index;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -60,16 +60,16 @@ where
         }
     }
 }
-//
-// impl<I, D> DataFrame<CompoundIndex<HCons<I,HNil>>, D>
-// where
-//     I: VariableRange + 'static,
-//     D: Index<usize>,
-// {
-//     pub fn collapse_single_index(self) -> DataFrame<I, D> {
-//         DataFrame {
-//             index: self.index.collapse_single(),
-//             data: self.data,
-//         }
-//     }
-// }
+
+impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
+where
+    I: VariableRange + 'static,
+    D: Index<usize>,
+{
+    pub fn collapse_single_index(self) -> DataFrame<I, D> {
+        DataFrame {
+            index: self.index.indices.head,
+            data: self.data,
+        }
+    }
+}

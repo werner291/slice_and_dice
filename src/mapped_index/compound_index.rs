@@ -3,10 +3,13 @@
 use crate::mapped_index::VariableRange;
 use frunk::hlist::{HList, h_cons};
 use frunk::indices::{Here, There};
-use frunk::traits::IntoReverse;
-use frunk::{HCons, HList, HNil};
-use peano::{NonNeg, Zero};
-use std::cmp::Reverse;
+use frunk::{HCons, HNil};
+
+pub type Dim0 = Here;
+pub type Dim1 = There<Dim0>;
+pub type Dim2 = There<Dim1>;
+pub type Dim3 = There<Dim2>;
+pub type Dim4 = There<Dim3>;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -30,7 +33,7 @@ impl<A: VariableRange> CompoundIndex<(A,)> {
     }
 }
 
-pub trait IndexHlist: HList {
+pub trait IndexHlist: HList + Sync + Clone {
     type Value<'a>: Copy + HList
     where
         Self: 'a;
@@ -115,7 +118,7 @@ impl IndexHlist for HNil {
         1
     }
 
-    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+    fn unflatten_index_value(&self, _: usize) -> Self::Value<'_> {
         HNil
     }
 }
