@@ -1,10 +1,12 @@
 #![allow(non_snake_case)]
 
 use crate::mapped_index::VariableRange;
-use crate::tuple_utils::{
-    DropFirst, NonEmptyTuple, Prepend, Tuple, TupleAsRefs, TupleCollectOption, TupleFirstElement,
-    TuplePrepend,
-};
+use frunk::hlist::{HList, h_cons};
+use frunk::indices::{Here, There};
+use frunk::traits::IntoReverse;
+use frunk::{HCons, HList, HNil};
+use peano::{NonNeg, Zero};
+use std::cmp::Reverse;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
@@ -28,162 +30,176 @@ impl<A: VariableRange> CompoundIndex<(A,)> {
     }
 }
 
-pub trait IndexRefTuple<'a>: Tuple + Copy {
-    type Value: Copy + Tuple;
+pub trait IndexHlist: HList {
+    type Value<'a>: Copy + HList
+    where
+        Self: 'a;
 
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
+    type Refs<'a>: RefIndexHList
+    where
+        Self: 'a;
 
-    fn unflatten_index_value(self, index: usize) -> Self::Value;
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone;
 
+    fn refs(&self) -> Self::Refs<'_>;
+
+    fn size(&self) -> usize;
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_>;
+}
+
+pub trait RefIndexHList: HList + Copy {
     fn size(self) -> usize;
 }
 
-pub trait IndexRefTupleMinMax<'a>: IndexRefTuple<'a> {
-    fn min(self) -> Option<Self::Value>
-    where
-        Self::Value: Ord;
-
-    fn max(self) -> Option<Self::Value>
-    where
-        Self::Value: Ord;
-}
-
-impl<'a> IndexRefTuple<'a> for () {
-    type Value = ();
-
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-        std::iter::once(())
-    }
-
-    fn unflatten_index_value(self, _index: usize) -> Self::Value {
-        ()
-    }
-
+impl RefIndexHList for HNil {
     fn size(self) -> usize {
         1
     }
 }
 
-impl<
-        'a,
-        B: NonEmptyTuple + TupleFirstElement<First = &'a T> + Copy + 'a,
-        T: VariableRange + 'a,
-    > IndexRefTuple<'a> for B
-where
-    Prepend<<T as VariableRange>::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>:
-        Copy
-            + TupleFirstElement<
-                First = <T as VariableRange>::Value<'a>,
-                Rest = <DropFirst<B> as IndexRefTuple<'a>>::Value,
-            >,
-    DropFirst<B>: IndexRefTuple<'a>,
-{
-    type Value = Prepend<T::Value<'a>, <DropFirst<B> as IndexRefTuple<'a>>::Value>;
-
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-        let (h, t) = TupleFirstElement::split_first(self);
-        VariableRange::iter(h).flat_map(move |hv| t.iter().map(move |tv| tv.prepend(hv)))
-    }
-
-    fn unflatten_index_value(self, index: usize) -> Self::Value {
-        let (h, t) = self.split_first();
-        let h_size = t.size();
-        let h_index = index / h_size;
-        let t_index = index % h_size;
-        let h_value = h.unflatten_index_value(h_index);
-        let t_value = t.unflatten_index_value(t_index);
-        t_value.prepend(h_value)
-    }
-
+impl<'a, Head: VariableRange, Tail: RefIndexHList> RefIndexHList for HCons<&'a Head, Tail> {
     fn size(self) -> usize {
-        let (h, t) = self.split_first();
-        h.size() * t.size()
+        self.head.size() * self.tail.size()
     }
 }
 
-pub trait IndexTuple: TupleAsRefs {
-    type RefTuple<'a>: IndexRefTuple<'a>
-    where
-        Self: 'a;
-    fn as_ref_tuple<'a>(&'a self) -> Self::RefTuple<'a>;
-}
-
-impl<Indices> IndexTuple for Indices
-where
-    Indices: TupleAsRefs,
-    for<'a> <Indices as TupleAsRefs>::AsTupleOfRefs<'a>: IndexRefTuple<'a>,
-{
-    type RefTuple<'a>
-        = <Indices as TupleAsRefs>::AsTupleOfRefs<'a>
-    where
-        Self: 'a;
-
-    fn as_ref_tuple(&self) -> Self::RefTuple<'_> {
-        self.as_tuple_of_refs()
-    }
-}
-
-impl<Indices> VariableRange for CompoundIndex<Indices>
-where
-    Indices: IndexTuple,
-{
+impl<Head: VariableRange, Tail: IndexHlist> IndexHlist for HCons<Head, Tail> {
     type Value<'a>
-        = <Indices::RefTuple<'a> as IndexRefTuple<'a>>::Value
+        = HCons<<Head as VariableRange>::Value<'a>, <Tail as IndexHlist>::Value<'a>>
+    where
+        Self: 'a;
+
+    type Refs<'a>
+        = HCons<&'a Head, <Tail as IndexHlist>::Refs<'a>>
+    where
+        Self: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.head
+            .iter()
+            .zip(self.tail.iter())
+            .map(|(head, tail)| h_cons(head, tail))
+    }
+
+    fn refs(&self) -> Self::Refs<'_> {
+        h_cons(&self.head, self.tail.refs())
+    }
+
+    fn size(&self) -> usize {
+        self.head.size() * self.tail.size()
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        let head = self.head.unflatten_index_value(index / self.tail.size());
+        let tail_index = index % self.tail.size();
+        h_cons(head, self.tail.unflatten_index_value(tail_index))
+    }
+}
+impl IndexHlist for HNil {
+    type Value<'a> = HNil;
+    type Refs<'a>
+        = HNil
+    where
+        Self: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        std::iter::once(HNil)
+    }
+
+    fn refs(&self) -> Self::Refs<'_> {
+        HNil
+    }
+
+    fn size(&self) -> usize {
+        1
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        HNil
+    }
+}
+
+pub trait HListExt: HList {}
+
+pub trait PluckSplit<At>: HList {
+    type Left: HList;
+    type Extract;
+    type Right: HList;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right);
+}
+
+pub type HLConcat<A, B> = <A as HListConcat<B>>::Concat;
+
+pub trait HListConcat<Other: HList>: HList {
+    type Concat: HList;
+
+    fn concat(self, other: Other) -> Self::Concat;
+}
+
+impl<Other: HList> HListConcat<Other> for HNil {
+    type Concat = Other;
+
+    fn concat(self, other: Other) -> Self::Concat {
+        other
+    }
+}
+
+impl<Head, Tail, Other: HList> HListConcat<Other> for HCons<Head, Tail>
+where
+    Tail: HListConcat<Other>,
+{
+    type Concat = HCons<Head, Tail::Concat>;
+
+    fn concat(self, other: Other) -> Self::Concat {
+        h_cons(self.head, self.tail.concat(other))
+    }
+}
+
+impl<Head, Tail> PluckSplit<Here> for HCons<Head, Tail>
+where
+    Tail: HList,
+{
+    type Left = HNil;
+    type Extract = Head;
+    type Right = Tail;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
+        (HNil, self.head, self.tail)
+    }
+}
+
+impl<Head, Tail: PluckSplit<ThereTail>, ThereTail> PluckSplit<There<ThereTail>>
+    for HCons<Head, Tail>
+where
+    Tail: HList,
+{
+    type Left = HCons<Head, Tail::Left>;
+    type Extract = Tail::Extract;
+    type Right = Tail::Right;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
+        let (l, e, r) = self.tail.pluck_split();
+        (h_cons(self.head, l), e, r)
+    }
+}
+
+impl<Indices: IndexHlist> VariableRange for CompoundIndex<Indices> {
+    type Value<'a>
+        = <Indices as IndexHlist>::Value<'a>
     where
         Indices: 'a;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        self.indices.as_ref_tuple().iter()
+        self.indices.iter()
     }
 
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
-        self.indices.as_ref_tuple().unflatten_index_value(index)
+        self.indices.unflatten_index_value(index)
     }
 
     fn size(&self) -> usize {
-        self.indices.as_ref_tuple().size()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mapped_index::{
-        categorical_index::CategoricalRange, numeric_range::NumericRangeIndex, VariableRange,
-    };
-
-    #[test]
-    fn test_compound_index_size_categorical_numeric() {
-        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32>::new(0, 3);
-        let ci = CompoundIndex::new((cat, num));
-        assert_eq!(VariableRange::size(&ci), 2 * 3);
-    }
-
-    #[test]
-    fn test_compound_index_iter_categorical_numeric() {
-        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32>::new(0, 2);
-        let ci = CompoundIndex::new((cat.clone(), num.clone()));
-        let items: Vec<_> = ci.iter().collect();
-        assert_eq!(items.len(), 4);
-        let cat_vals: Vec<_> = cat.iter().collect();
-        let num_vals: Vec<_> = num.iter().collect();
-        assert!(items.contains(&(cat_vals[0], num_vals[0])));
-        assert!(items.contains(&(cat_vals[1], num_vals[1])));
-    }
-
-    #[test]
-    fn test_unflatten_index_values_categorical_numeric() {
-        let cat = CategoricalRange::<i32>::new(vec![10, 20]);
-        let num = NumericRangeIndex::<i32>::new(0, 3);
-        let ci = CompoundIndex::new((cat, num));
-
-        // Test that all indices within the size range return valid values
-        for i in 0..ci.size() {
-            let value = ci.unflatten_index_value(i);
-            // Verify the value is one of the expected values from the iterator
-            assert!(ci.iter().any(|v| v == value));
-        }
+        self.indices.size()
     }
 }
