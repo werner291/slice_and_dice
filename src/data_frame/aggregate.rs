@@ -61,8 +61,11 @@ where
             let current_index = self.index;
             self.index += 1;
 
-            // Instead of creating a local middle variable, use the data's indices directly
-            let middle_value = self.m.unflatten_index_value(current_index);
+            // Calculate the middle dimension index from the flat index
+            // For a compound index with components (L, M, R), the middle index is:
+            // M_index = (flat_index / R.size()) % M.size()
+            let middle_index = (current_index / self.r_size) % self.m_size;
+            let middle_value = self.m.unflatten_index_value(middle_index);
 
             Some((
                 middle_value,
@@ -189,6 +192,44 @@ mod tests {
     use frunk::hlist::h_cons;
     use frunk::indices::{Here, There};
     use frunk::{HNil, hlist};
+
+    // Test that reproduces the crash in DimIter::next()
+    #[test]
+    fn test_dim_iter_crash() {
+        // Create a 3D DataFrame with dimensions 2x2x2
+        let index1 = NumericRangeIndex::<i32>::new(0, 2); // [0, 1]
+        let index2 = NumericRangeIndex::<i32>::new(10, 12); // [10, 11]
+        let index3 = NumericRangeIndex::<i32>::new(100, 102); // [100, 101]
+
+        // Create compound index with all three dimensions
+        let indices = h_cons(
+            index1.clone(),
+            h_cons(index2.clone(), h_cons(index3.clone(), HNil)),
+        );
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data for a 2x2x2 cube
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Iterate over the middle dimension
+        let iter = df.iter_over_dim::<There<Here>, NumericRangeIndex<i32>>();
+
+        // Collect the results to force iteration
+        let results: Vec<_> = iter.collect();
+
+        // Verify we got the expected number of results
+        // For a 3D DataFrame with dimensions 2x2x2, we should get 8 results
+        // when iterating over the middle dimension
+        assert_eq!(results.len(), 8);
+
+        // Verify that the middle dimension values are correct
+        // The middle dimension has values [10, 11], and each should appear 4 times
+        let middle_values: Vec<_> = results.iter().map(|(value, _)| *value).collect();
+        assert_eq!(middle_values.iter().filter(|&&v| v == 10).count(), 4);
+        assert_eq!(middle_values.iter().filter(|&&v| v == 11).count(), 4);
+    }
 
     // Test that mean_over_dim works correctly (which uses iter_over_dim internally)
     #[test]
