@@ -35,10 +35,12 @@ macro_rules! impl_numeric_range_value {
 impl_numeric_range_value!(usize);
 impl_numeric_range_value!(u64);
 impl_numeric_range_value!(i64);
+impl_numeric_range_value!(i32);
+impl_numeric_range_value!(u32);
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct NumericRangeIndex<I: Debug> {
     /// The start of the range (inclusive).
     pub start: I,
