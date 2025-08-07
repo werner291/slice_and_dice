@@ -49,9 +49,9 @@ where
         }
     }
 
-    pub fn build_from_index<F, U>(index: &I, mut f: F) -> DataFrame<I, Vec<U>>
+    pub fn build_from_index<F>(index: &I, mut f: F) -> DataFrame<I, Vec<T>>
     where
-        F: FnMut(I::Value<'_>) -> U,
+        F: FnMut(I::Value<'_>) -> T,
     {
         let data = index.iter().map(|v| f(v)).collect();
         DataFrame {
