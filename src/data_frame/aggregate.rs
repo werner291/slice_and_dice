@@ -25,9 +25,9 @@ pub struct DimIter<'a, Indices: IndexHlist, D: Index<usize>, At, Middle> {
 impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At>
     DimIter<'a, Indices, D, At, Middle>
 where
-    for<'b> Indices::Refs<'b>: PluckSplit<At, Extract = &'a Middle>,
-    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Left: RefIndexHList,
-    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Right: RefIndexHList,
+    Indices::Refs<'a>: PluckSplit<At, Extract = &'a Middle>,
+    <Indices::Refs<'a> as PluckSplit<At>>::Left: RefIndexHList,
+    <Indices::Refs<'a> as PluckSplit<At>>::Right: RefIndexHList,
 {
     pub fn new(data: &'a DataFrame<CompoundIndex<Indices>, D>) -> Self {
         let (l, m, r) = data.index.indices.refs().pluck_split();
@@ -50,9 +50,9 @@ where
 impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At> Iterator
     for DimIter<'a, Indices, D, At, Middle>
 where
-    for<'b> Indices::Refs<'b>: PluckSplit<At, Extract = &'a Middle>,
-    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Left: RefIndexHList,
-    for<'b> <Indices::Refs<'b> as PluckSplit<At>>::Right: RefIndexHList,
+    Indices::Refs<'a>: PluckSplit<At, Extract = &'a Middle>,
+    <Indices::Refs<'a> as PluckSplit<At>>::Left: RefIndexHList,
+    <Indices::Refs<'a> as PluckSplit<At>>::Right: RefIndexHList,
 {
     type Item = (Middle::Value<'a>, StridedIndexView<'a, D>);
 
@@ -91,9 +91,9 @@ where
         &'a self,
     ) -> DimIter<'a, Indices, D, Idx, Middle>
     where
-        for<'b> Indices::Refs<'b>: PluckSplit<Idx, Extract = &'a Middle>,
-        for<'b> <Indices::Refs<'b> as PluckSplit<Idx>>::Left: RefIndexHList,
-        for<'b> <Indices::Refs<'b> as PluckSplit<Idx>>::Right: RefIndexHList,
+        Indices::Refs<'a>: PluckSplit<Idx, Extract = &'a Middle>,
+        <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
+        <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
     {
         DimIter::<Indices, D, Idx, Middle>::new(self)
     }
