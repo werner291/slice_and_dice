@@ -195,6 +195,9 @@ name = "sorted-vec"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40f1aa8c0f688ae6d6ffd5e9e351d635acc176dfad05816494b321be7e01007"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "syn"
