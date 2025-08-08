@@ -52,18 +52,36 @@ pub trait IndexHlist: HList + Sync + Clone {
 }
 
 pub trait RefIndexHList: HList + Copy {
+    type Value: Copy + HList;
+
     fn size(self) -> usize;
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
 }
 
 impl RefIndexHList for HNil {
+    type Value = HNil;
+
     fn size(self) -> usize {
         1
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+        std::iter::once(HNil)
     }
 }
 
 impl<'a, Head: VariableRange, Tail: RefIndexHList> RefIndexHList for HCons<&'a Head, Tail> {
+    type Value = HCons<Head::Value<'a>, <Tail as RefIndexHList>::Value>;
+
     fn size(self) -> usize {
         self.head.size() * self.tail.size()
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+        self.head
+            .iter()
+            .flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
     }
 }
 

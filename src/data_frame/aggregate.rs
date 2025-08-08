@@ -1,6 +1,7 @@
 //! Aggregation logic for DataFrame over a dimension.
 
 use super::core::DataFrame;
+use crate::data_frame::core::FrameData;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::{
@@ -8,78 +9,8 @@ use crate::mapped_index::compound_index::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::marker::PhantomData;
-use std::ops::Index;
 
-// Modify the DimIter struct to use higher-ranked trait bounds
-pub struct DimIter<'a, Indices: IndexHlist, D: Index<usize>, At, Middle> {
-    data: &'a DataFrame<CompoundIndex<Indices>, D>,
-    index: usize,
-    m: &'a Middle,
-    l_size: usize,
-    m_size: usize,
-    r_size: usize,
-    at: PhantomData<At>,
-}
-
-impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At>
-    DimIter<'a, Indices, D, At, Middle>
-where
-    Indices::Refs<'a>: PluckSplit<At, Extract = &'a Middle>,
-    <Indices::Refs<'a> as PluckSplit<At>>::Left: RefIndexHList,
-    <Indices::Refs<'a> as PluckSplit<At>>::Right: RefIndexHList,
-{
-    pub fn new(data: &'a DataFrame<CompoundIndex<Indices>, D>) -> Self {
-        let (l, m, r) = data.index.indices.refs().pluck_split();
-        let l_size = l.size();
-        let m_size = m.size();
-        let r_size = r.size();
-
-        Self {
-            data,
-            index: 0,
-            m,
-            l_size,
-            m_size,
-            r_size,
-            at: PhantomData,
-        }
-    }
-}
-
-impl<'a, Middle: VariableRange, Indices: IndexHlist, D: Index<usize>, At> Iterator
-    for DimIter<'a, Indices, D, At, Middle>
-where
-    Indices::Refs<'a>: PluckSplit<At, Extract = &'a Middle>,
-    <Indices::Refs<'a> as PluckSplit<At>>::Left: RefIndexHList,
-    <Indices::Refs<'a> as PluckSplit<At>>::Right: RefIndexHList,
-{
-    type Item = (Middle::Value<'a>, StridedIndexView<'a, D>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.l_size * self.r_size {
-            let current_index = self.index;
-            self.index += 1;
-
-            // Instead of creating a local middle variable, use the data's indices directly
-            let middle_value = self.m.unflatten_index_value(current_index);
-
-            Some((
-                middle_value,
-                StridedIndexView {
-                    base: current_index,
-                    stride: self.r_size,
-                    n_strides: self.m_size,
-                    view_into: &self.data.data,
-                },
-            ))
-        } else {
-            None
-        }
-    }
-}
-
-impl<Indices: IndexHlist, D: Index<usize>> DataFrame<CompoundIndex<Indices>, D>
+impl<Indices: IndexHlist, D: FrameData> DataFrame<CompoundIndex<Indices>, D>
 where
     D::Output: Clone,
 {
@@ -87,15 +18,36 @@ where
     ///
     /// Returns an iterator that yields StridedIndexViews for each combination of indices
     /// except the dimension being iterated over.
-    pub fn iter_over_dim<'a, Idx, Middle: VariableRange>(
+    pub fn iter_over_dim<'a, Idx, Middle: VariableRange + 'a>(
         &'a self,
-    ) -> DimIter<'a, Indices, D, Idx, Middle>
+    ) -> DataFrame<&'a Middle, Vec<Vec<&'a D::Output>>>
     where
         Indices::Refs<'a>: PluckSplit<Idx, Extract = &'a Middle>,
         <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
         <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
     {
-        DimIter::<Indices, D, Idx, Middle>::new(self)
+        let (l, m, r) = self.index.indices.refs().pluck_split();
+
+        let m_size = m.size();
+        let r_size = r.size();
+
+        let data = m
+            .iter()
+            .enumerate()
+            .map(|(m_i, m_v)| {
+                l.iter()
+                    .enumerate()
+                    .flat_map(|(l_i, l_v)| {
+                        r.iter().enumerate().map(move |(r_i, r_v)| {
+                            let flat_index = l_i * (m_size * r_size) + m_i * r_size + r_i;
+                            &self.data[flat_index]
+                        })
+                    })
+                    .collect_vec() // TODO: can we do without copying? Some kinda fancy index translation store?
+            })
+            .collect_vec();
+
+        DataFrame::new(m, data)
     }
 
     /// Aggregate over the dimension specified by typenum.
@@ -129,12 +81,12 @@ where
                 let f = &f;
                 let data = &self.data;
                 (0..r_size).map(move |r_i| {
-                    f(StridedIndexView {
-                        base: l_i * m_size * r_size + r_i,
-                        stride: r_size,
-                        n_strides: m_size,
-                        view_into: data,
-                    })
+                    f(StridedIndexView::new(
+                        l_i * m_size * r_size + r_i,
+                        r_size,
+                        m_size,
+                        data,
+                    ))
                 })
             })
             .collect_vec();
@@ -185,10 +137,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mapped_index::compound_index::{Dim0, Dim1};
     use crate::mapped_index::numeric_range::NumericRangeIndex;
     use frunk::hlist::h_cons;
     use frunk::indices::{Here, There};
-    use frunk::{HNil, hlist};
+    use frunk::{HNil, hlist, hlist_pat};
+    use itertools::iproduct;
 
     // Test that mean_over_dim works correctly (which uses iter_over_dim internally)
     #[test]

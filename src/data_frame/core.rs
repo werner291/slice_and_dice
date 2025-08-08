@@ -4,12 +4,26 @@ use crate::mapped_index::compound_index::CompoundIndex;
 use frunk::{HCons, HList, HNil};
 use std::ops::Index;
 
+pub trait FrameData: Index<usize> {
+    fn len(&self) -> usize;
+
+    fn iter(&self) -> impl Iterator<Item = &Self::Output> + '_ {
+        (0..self.len()).map(|i| &self[i])
+    }
+}
+
+impl<D> FrameData for Vec<D> {
+    fn len(&self) -> usize {
+        self.len()
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct DataFrame<I, D>
 where
     I: VariableRange,
-    D: Index<usize>,
+    D: FrameData,
 {
     /// The index structure (categorical, numeric, compound, etc.).
     pub index: I,
@@ -20,17 +34,14 @@ where
 impl<I, D> DataFrame<I, D>
 where
     I: VariableRange,
-    D: Index<usize> + IntoIterator,
+    D: FrameData,
 {
     pub const fn new(index: I, data: D) -> Self {
         Self { index, data }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
-        self.index
-            .iter()
-            .enumerate()
-            .map(|(i, v)| (v, &self.data[i]))
+        self.index.iter().zip(self.data.iter())
     }
 }
 
@@ -64,7 +75,7 @@ where
 impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
 where
     I: VariableRange + 'static,
-    D: Index<usize>,
+    D: FrameData,
 {
     pub fn collapse_single_index(self) -> DataFrame<I, D> {
         DataFrame {

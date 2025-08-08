@@ -1,17 +1,49 @@
 //! StridedIndexView: an iterator for strided access into indexable data.
+use crate::data_frame::core::FrameData;
 use std::ops::Index;
 
 /// An iterator that yields references to elements in a strided pattern from a base index.
-pub struct StridedIndexView<'a, D: Index<usize>> {
-    pub(crate) base: usize,
-    pub(crate) stride: usize,
-    pub(crate) n_strides: usize,
-    pub(crate) view_into: &'a D,
+pub struct StridedIndexView<'a, D> {
+    base: usize,
+    stride: usize,
+    pub n_strides: usize,
+    view_into: &'a D,
+}
+
+impl<'a, D> StridedIndexView<'a, D>
+where
+    D: FrameData,
+{
+    /// Creates a new StridedIndexView with the given parameters.
+    ///
+    /// # Arguments
+    /// * `base` - Starting index position
+    /// * `stride` - Number of elements to skip between each access
+    /// * `n_strides` - Number of elements to yield
+    /// * `view_into` - Reference to the data being viewed
+    pub fn new(base: usize, stride: usize, n_strides: usize, view_into: &'a D) -> Self {
+        // Check that the indices produced by the view are within bounds.
+        if n_strides > 0 {
+            let max_index = base + stride * (n_strides - 1);
+            assert!(max_index < view_into.len());
+        }
+
+        Self {
+            base,
+            stride,
+            n_strides,
+            view_into,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.n_strides
+    }
 }
 
 impl<'a, D> Iterator for StridedIndexView<'a, D>
 where
-    D: Index<usize>,
+    D: FrameData,
 {
     type Item = &'a D::Output;
 
@@ -29,7 +61,7 @@ where
 
 impl<'a, D> ExactSizeIterator for StridedIndexView<'a, D>
 where
-    D: Index<usize>,
+    D: FrameData,
 {
     fn len(&self) -> usize {
         self.n_strides

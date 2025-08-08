@@ -1,5 +1,5 @@
 //! Stacking logic for DataFrame.
-use super::core::DataFrame;
+use super::core::{DataFrame, FrameData};
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::CompoundIndex;
 use crate::mapped_index::numeric_range::NumericRangeIndex;
@@ -34,7 +34,7 @@ pub enum ExtrapolationMethod {
 impl<I, D> DataFrame<I, D>
 where
     I: VariableRange + Clone + PartialEq + 'static,
-    D: Index<usize>,
+    D: FrameData,
     D::Output: Clone,
 {
     /// Stack an iterator of DataFrames into one DataFrame with a compound index.
@@ -72,7 +72,7 @@ where
 impl<I, D> DataFrame<SparseNumericIndex<I>, D>
 where
     I: Copy + PartialOrd + Ord + 'static + Sync,
-    D: Index<usize>,
+    D: FrameData,
     D::Output: Clone + Default,
 {
     /// Stack an iterator of DataFrames with potentially mismatching SparseNumericIndex into one DataFrame with a compound index.
