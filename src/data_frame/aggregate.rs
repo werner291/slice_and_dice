@@ -297,4 +297,158 @@ mod tests {
         assert_eq!(product_cols.data.len(), 1);
         assert_eq!(product_cols.data[0], 100 * 101 * 102);
     }
+
+    // Test iter_over_dim functionality
+    #[test]
+    fn test_iter_over_dim() {
+        // Create a 2D DataFrame with dimensions 2x3
+        let index1 = NumericRangeIndex::<i32>::new(0, 2); // [0, 1]
+        let index2 = NumericRangeIndex::<i32>::new(10, 13); // [10, 11, 12]
+
+        // Create compound index with both dimensions
+        let indices = h_cons(index1.clone(), h_cons(index2.clone(), HNil));
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data: [10, 20, 30, 40, 50, 60]
+        // This represents a 2x3 matrix:
+        // [10, 20, 30]
+        // [40, 50, 60]
+        let data = vec![10, 20, 30, 40, 50, 60];
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Iterate over first dimension (rows)
+        let iter_rows = df.iter_over_dim::<Here, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [0, 1] and data containing references
+        // to the original data elements for each row
+        assert_eq!(iter_rows.index.size(), 2);
+        assert_eq!(iter_rows.data.len(), 2);
+
+        // First row should contain [10, 20, 30]
+        assert_eq!(iter_rows.data[0].len(), 3);
+        assert_eq!(*iter_rows.data[0][0], 10);
+        assert_eq!(*iter_rows.data[0][1], 20);
+        assert_eq!(*iter_rows.data[0][2], 30);
+
+        // Second row should contain [40, 50, 60]
+        assert_eq!(iter_rows.data[1].len(), 3);
+        assert_eq!(*iter_rows.data[1][0], 40);
+        assert_eq!(*iter_rows.data[1][1], 50);
+        assert_eq!(*iter_rows.data[1][2], 60);
+
+        // Iterate over second dimension (columns)
+        let iter_cols = df.iter_over_dim::<There<Here>, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [10, 11, 12] and data containing references
+        // to the original data elements for each column
+        assert_eq!(iter_cols.index.size(), 3);
+        assert_eq!(iter_cols.data.len(), 3);
+
+        // First column should contain [10, 40]
+        assert_eq!(iter_cols.data[0].len(), 2);
+        assert_eq!(*iter_cols.data[0][0], 10);
+        assert_eq!(*iter_cols.data[0][1], 40);
+
+        // Second column should contain [20, 50]
+        assert_eq!(iter_cols.data[1].len(), 2);
+        assert_eq!(*iter_cols.data[1][0], 20);
+        assert_eq!(*iter_cols.data[1][1], 50);
+
+        // Third column should contain [30, 60]
+        assert_eq!(iter_cols.data[2].len(), 2);
+        assert_eq!(*iter_cols.data[2][0], 30);
+        assert_eq!(*iter_cols.data[2][1], 60);
+    }
+
+    // Test iter_over_dim with a more complex 4D array
+    #[test]
+    fn test_iter_over_dim_complex() {
+        // Create a 4D DataFrame with dimensions 3x4x2x5
+        let index1 = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let index2 = NumericRangeIndex::<i32>::new(10, 14); // [10, 11, 12, 13]
+        let index3 = NumericRangeIndex::<i32>::new(20, 22); // [20, 21]
+        let index4 = NumericRangeIndex::<i32>::new(30, 35); // [30, 31, 32, 33, 34]
+
+        // Create compound index with all four dimensions
+        let indices = h_cons(
+            index1.clone(),
+            h_cons(
+                index2.clone(),
+                h_cons(index3.clone(), h_cons(index4.clone(), HNil)),
+            ),
+        );
+        let compound_index = CompoundIndex::new(indices);
+
+        // Create data for a 3x4x2x5 array (120 elements)
+        let data: Vec<i32> = (1..=120).collect();
+
+        let df = DataFrame::new(compound_index, data);
+
+        // Iterate over first dimension (dim0)
+        let iter_dim0 = df.iter_over_dim::<Here, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [0, 1, 2] and data containing references
+        // to the original data elements for each slice of dim0
+        assert_eq!(iter_dim0.index.size(), 3);
+        assert_eq!(iter_dim0.data.len(), 3);
+
+        // Each slice should have 4*2*5 = 40 elements
+        assert_eq!(iter_dim0.data[0].len(), 40);
+        assert_eq!(iter_dim0.data[1].len(), 40);
+        assert_eq!(iter_dim0.data[2].len(), 40);
+
+        // Check some specific values in the first slice
+        assert_eq!(*iter_dim0.data[0][0], 1); // First element of first slice
+        assert_eq!(*iter_dim0.data[0][39], 40); // Last element of first slice
+
+        // Check some specific values in the second slice
+        assert_eq!(*iter_dim0.data[1][0], 41); // First element of second slice
+        assert_eq!(*iter_dim0.data[1][39], 80); // Last element of second slice
+
+        // Check some specific values in the third slice
+        assert_eq!(*iter_dim0.data[2][0], 81); // First element of third slice
+        assert_eq!(*iter_dim0.data[2][39], 120); // Last element of third slice
+
+        // Iterate over second dimension (dim1)
+        let iter_dim1 = df.iter_over_dim::<There<Here>, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [10, 11, 12, 13] and data containing references
+        // to the original data elements for each slice of dim1
+        assert_eq!(iter_dim1.index.size(), 4);
+        assert_eq!(iter_dim1.data.len(), 4);
+
+        // Each slice should have 3*2*5 = 30 elements
+        assert_eq!(iter_dim1.data[0].len(), 30);
+        assert_eq!(iter_dim1.data[1].len(), 30);
+        assert_eq!(iter_dim1.data[2].len(), 30);
+        assert_eq!(iter_dim1.data[3].len(), 30);
+
+        // Iterate over third dimension (dim2)
+        let iter_dim2 = df.iter_over_dim::<There<There<Here>>, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [20, 21] and data containing references
+        // to the original data elements for each slice of dim2
+        assert_eq!(iter_dim2.index.size(), 2);
+        assert_eq!(iter_dim2.data.len(), 2);
+
+        // Each slice should have 3*4*5 = 60 elements
+        assert_eq!(iter_dim2.data[0].len(), 60);
+        assert_eq!(iter_dim2.data[1].len(), 60);
+
+        // Iterate over fourth dimension (dim3)
+        let iter_dim3 = df.iter_over_dim::<There<There<There<Here>>>, NumericRangeIndex<i32>>();
+
+        // Result should be a DataFrame with index [30, 31, 32, 33, 34] and data containing references
+        // to the original data elements for each slice of dim3
+        assert_eq!(iter_dim3.index.size(), 5);
+        assert_eq!(iter_dim3.data.len(), 5);
+
+        // Each slice should have 3*4*2 = 24 elements
+        assert_eq!(iter_dim3.data[0].len(), 24);
+        assert_eq!(iter_dim3.data[1].len(), 24);
+        assert_eq!(iter_dim3.data[2].len(), 24);
+        assert_eq!(iter_dim3.data[3].len(), 24);
+        assert_eq!(iter_dim3.data[4].len(), 24);
+    }
 }
