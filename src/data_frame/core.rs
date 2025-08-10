@@ -71,7 +71,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mapped_index::compound_index::CompoundIndex;
     use crate::mapped_index::numeric_range::NumericRangeIndex;
+    use frunk::hlist::{HNil, h_cons};
 
     #[test]
     fn test_dataframe_constructor_validation() {
@@ -92,6 +94,135 @@ mod tests {
             result.is_err(),
             "DataFrame::new should panic when index and data lengths don't match"
         );
+    }
+
+    #[test]
+    fn test_accessor_methods() {
+        let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let data = vec![10, 20, 30];
+        let mut df = DataFrame::new(index.clone(), data.clone());
+
+        // Test index()
+        assert_eq!(df.index().size(), 3);
+
+        // Test data()
+        assert_eq!(df.data().len(), 3);
+        assert_eq!(df.data()[0], 10);
+        assert_eq!(df.data()[1], 20);
+        assert_eq!(df.data()[2], 30);
+
+        // Test data_mut()
+        df.data_mut()[0] = 100;
+        assert_eq!(df.data()[0], 100);
+
+        // Test data_at()
+        assert_eq!(*df.data_at(0), 100);
+        assert_eq!(*df.data_at(1), 20);
+        assert_eq!(*df.data_at(2), 30);
+
+        // Test internal_data() and internal_index()
+        assert_eq!(df.internal_data().len(), 3);
+        assert_eq!(df.internal_index().size(), 3);
+    }
+
+    #[test]
+    fn test_index_operator() {
+        let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index, data);
+
+        assert_eq!(df[0], 10);
+        assert_eq!(df[1], 20);
+        assert_eq!(df[2], 30);
+    }
+
+    #[test]
+    fn test_iter() {
+        let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index, data);
+
+        let mut iter = df.iter();
+        assert_eq!(iter.next(), Some((0, &10)));
+        assert_eq!(iter.next(), Some((1, &20)));
+        assert_eq!(iter.next(), Some((2, &30)));
+        assert_eq!(iter.next(), None);
+
+        // Test collecting into a vector
+        let collected: Vec<_> = df.iter().collect();
+        assert_eq!(collected, vec![(0, &10), (1, &20), (2, &30)]);
+    }
+
+    #[test]
+    fn test_map() {
+        let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let data = vec![10, 20, 30];
+        let df = DataFrame::new(index, data);
+
+        // Map to double the values
+        let mapped_df = df.map(|x| x * 2);
+
+        assert_eq!(mapped_df.data().len(), 3);
+        assert_eq!(mapped_df[0], 20);
+        assert_eq!(mapped_df[1], 40);
+        assert_eq!(mapped_df[2], 60);
+
+        // Map to strings
+        let string_df = df.map(|x| x.to_string());
+
+        assert_eq!(string_df.data().len(), 3);
+        assert_eq!(string_df[0], "10");
+        assert_eq!(string_df[1], "20");
+        assert_eq!(string_df[2], "30");
+    }
+
+    #[test]
+    fn test_build_from_index() {
+        let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+
+        // Build a DataFrame where each value is the index squared
+        let df = DataFrame::build_from_index(&index, |i| i * i);
+
+        assert_eq!(df.data().len(), 3);
+        assert_eq!(df[0], 0);
+        assert_eq!(df[1], 1);
+        assert_eq!(df[2], 4);
+    }
+
+    #[test]
+    fn test_collapse_single_index() {
+        // Create a compound index with a single NumericRangeIndex
+        let numeric_index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
+        let indices = h_cons(numeric_index.clone(), HNil);
+        let compound_index = CompoundIndex::new(indices);
+        let data = vec![10, 20, 30];
+
+        let compound_df = DataFrame::new(compound_index, data);
+
+        // Collapse the compound index
+        let collapsed_df = compound_df.collapse_single_index();
+
+        // Verify the collapsed DataFrame has the correct index and data
+        assert_eq!(collapsed_df.index().size(), 3);
+        assert_eq!(collapsed_df.data().len(), 3);
+        assert_eq!(collapsed_df[0], 10);
+        assert_eq!(collapsed_df[1], 20);
+        assert_eq!(collapsed_df[2], 30);
+    }
+
+    #[test]
+    fn test_framedata_for_vec() {
+        let vec = vec![1, 2, 3];
+
+        // Test len()
+        assert_eq!(vec.len(), 3);
+
+        // Test iter()
+        let mut iter = vec.iter();
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), None);
     }
 }
 
