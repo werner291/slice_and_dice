@@ -26,7 +26,7 @@ where
         <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
         <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
     {
-        let (l, m, r) = self.index.indices.refs().pluck_split();
+        let (l, m, r) = self.index().indices.refs().pluck_split();
 
         let m_size = m.size();
         let r_size = r.size();
@@ -40,7 +40,7 @@ where
                     .flat_map(|(l_i, l_v)| {
                         r.iter().enumerate().map(move |(r_i, r_v)| {
                             let flat_index = l_i * (m_size * r_size) + m_i * r_size + r_i;
-                            &self.data[flat_index]
+                            &self.data()[flat_index]
                         })
                     })
                     .collect_vec() // TODO: can we do without copying? Some kinda fancy index translation store?
@@ -71,7 +71,7 @@ where
             IndexHlist,
         F: for<'any> Fn(StridedIndexView<'any, D>) -> R,
     {
-        let refs = self.index.indices;
+        let refs = self.index().indices.clone();
         let (l, m, r) = refs.pluck_split();
         let l_size = l.size();
         let m_size = m.size();
@@ -79,7 +79,7 @@ where
         let agg_data = (0..l_size)
             .flat_map(|l_i| {
                 let f = &f;
-                let data = &self.data;
+                let data = self.data();
                 (0..r_size).map(move |r_i| {
                     f(StridedIndexView::new(
                         l_i * m_size * r_size + r_i,
@@ -90,10 +90,7 @@ where
                 })
             })
             .collect_vec();
-        DataFrame {
-            index: CompoundIndex::new(l.concat(r)),
-            data: agg_data,
-        }
+        DataFrame::new(CompoundIndex::new(l.concat(r)), agg_data)
     }
 
     /// Compute the mean over the dimension specified by typenum.

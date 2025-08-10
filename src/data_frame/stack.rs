@@ -49,9 +49,9 @@ where
             return None;
         }
         // Check all inner indices are equal
-        let first_index = &dfs[0].index;
+        let first_index = dfs[0].index();
         for df in &dfs[1..] {
-            if first_index != &df.index {
+            if first_index != df.index() {
                 panic!("Indices mismatched.");
             }
         }
@@ -61,8 +61,8 @@ where
         };
         let mut data = Vec::new();
         for df in &dfs {
-            for i in 0..df.index.size() {
-                data.push(df.data[i].clone());
+            for i in 0..df.index().size() {
+                data.push(df.data_at(i).clone());
             }
         }
         Some(DataFrame::new(compound_index, data))
@@ -105,7 +105,7 @@ where
         // Create a union of all indices
         let mut all_indices = SortedSet::new();
         for df in &dfs {
-            all_indices.extend(df.index.indices.iter().copied());
+            all_indices.extend(df.index().indices.iter().copied());
         }
 
         // Create a new index from the union
@@ -120,14 +120,14 @@ where
         // Fill in the data, handling missing values
         let mut data = Vec::new();
         for df in &dfs {
-            let df_indices = &df.index.indices;
+            let df_indices = &df.index().indices;
 
             for &union_idx in &union_index.indices {
                 // Check if this index exists in the current DataFrame
                 match df_indices.binary_search(&union_idx) {
                     Ok(pos) => {
                         // Index exists, use the actual value
-                        data.push(df.data[pos].clone());
+                        data.push(df.data_at(pos).clone());
                     }
                     Err(insert_pos) => {
                         // Index doesn't exist, interpolate or extrapolate
@@ -140,10 +140,10 @@ where
                                         default_value.clone()
                                     } else if insert_pos == 0 {
                                         // Use the first value
-                                        df.data[0].clone()
+                                        df.data_at(0).clone()
                                     } else {
                                         // Use the last value
-                                        df.data[df_indices.len() - 1].clone()
+                                        df.data_at(df_indices.len() - 1).clone()
                                     }
                                 }
                                 ExtrapolationMethod::Default => default_value.clone(),
@@ -169,18 +169,18 @@ where
 
                                     match prev_dist.cmp(&next_dist) {
                                         Ordering::Less | Ordering::Equal => {
-                                            df.data[insert_pos - 1].clone()
+                                            df.data_at(insert_pos - 1).clone()
                                         }
-                                        Ordering::Greater => df.data[insert_pos].clone(),
+                                        Ordering::Greater => df.data_at(insert_pos).clone(),
                                     }
                                 }
                                 InterpolationMethod::Previous => {
                                     // Use the previous value
-                                    df.data[insert_pos - 1].clone()
+                                    df.data_at(insert_pos - 1).clone()
                                 }
                                 InterpolationMethod::Next => {
                                     // Use the next value
-                                    df.data[insert_pos].clone()
+                                    df.data_at(insert_pos).clone()
                                 }
                                 InterpolationMethod::Default => default_value.clone(),
                             }
@@ -208,9 +208,9 @@ mod tests {
         let df2 = DataFrame::new(index.clone(), vec![30, 40]);
         let stacked = DataFrame::stack(vec![df1, df2]).unwrap();
 
-        assert_eq!(stacked.index.indices.head.size(), 2); // Outer index size
-        assert_eq!(stacked.index.indices.tail.head, index); // Inner index
-        assert_eq!(stacked.data, vec![10, 20, 30, 40]); // Flattened data
+        assert_eq!(stacked.index().indices.head.size(), 2); // Outer index size
+        assert_eq!(stacked.index().indices.tail.head, index); // Inner index
+        assert_eq!(stacked.data(), &vec![10, 20, 30, 40]); // Flattened data
     }
 
     #[test]
@@ -228,12 +228,12 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(stacked.index.indices.head.size(), 2); // Outer index size
+        assert_eq!(stacked.index().indices.head.size(), 2); // Outer index size
         assert_eq!(
-            stacked.index.indices.tail.head.indices,
+            stacked.index().indices.tail.head.indices,
             vec![1, 3, 5].into()
         ); // Inner index
-        assert_eq!(stacked.data, vec![10, 30, 50, 100, 300, 500]); // Flattened data
+        assert_eq!(stacked.data(), &vec![10, 30, 50, 100, 300, 500]); // Flattened data
     }
 
     #[test]
@@ -253,9 +253,9 @@ mod tests {
         .unwrap();
 
         // Union of indices should be [1, 2, 3, 5, 6]
-        assert_eq!(stacked.index.indices.head.size(), 2); // Outer index size
+        assert_eq!(stacked.index().indices.head.size(), 2); // Outer index size
         assert_eq!(
-            stacked.index.indices.tail.head.indices,
+            stacked.index().indices.tail.head.indices,
             vec![1, 2, 3, 5, 6].into()
         ); // Inner index
 
@@ -264,7 +264,10 @@ mod tests {
         // With Nearest interpolation/extrapolation:
         // First DataFrame: [10, 10, 30, 50, 50]
         // Second DataFrame: [20, 20, 30, 30, 60]
-        assert_eq!(stacked.data, vec![10, 10, 30, 50, 50, 20, 20, 30, 30, 60]);
+        assert_eq!(
+            stacked.data(),
+            &vec![10, 10, 30, 50, 50, 20, 20, 30, 30, 60]
+        );
     }
 
     #[test]
@@ -289,15 +292,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            stacked_prev.index.indices.tail.head.indices,
+            stacked_prev.index().indices.tail.head.indices,
             vec![1, 3, 5].into()
         ); // Inner index
         // First DataFrame: [10, 10, 50] (value at 3 is from previous at 1)
         // Second DataFrame: [100, 100, 500] (value at 3 is from previous at 1)
         // Third DataFrame: [1000, 3000, 5000] (actual values)
         assert_eq!(
-            stacked_prev.data,
-            vec![10, 10, 50, 100, 100, 500, 1000, 3000, 5000]
+            stacked_prev.data(),
+            &vec![10, 10, 50, 100, 100, 500, 1000, 3000, 5000]
         );
 
         // Test Next interpolation
@@ -310,15 +313,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            stacked_next.index.indices.tail.head.indices,
+            stacked_next.index().indices.tail.head.indices,
             vec![1, 3, 5].into()
         ); // Inner index
         // First DataFrame: [10, 50, 50] (value at 3 is from next at 5)
         // Second DataFrame: [100, 500, 500] (value at 3 is from next at 5)
         // Third DataFrame: [1000, 3000, 5000] (actual values)
         assert_eq!(
-            stacked_next.data,
-            vec![10, 50, 50, 100, 500, 500, 1000, 3000, 5000]
+            stacked_next.data(),
+            &vec![10, 50, 50, 100, 500, 500, 1000, 3000, 5000]
         );
 
         // Test Default interpolation
@@ -331,15 +334,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            stacked_default.index.indices.tail.head.indices,
+            stacked_default.index().indices.tail.head.indices,
             vec![1, 3, 5].into()
         ); // Inner index
         // First DataFrame: [10, 999, 50] (value at 3 is default)
         // Second DataFrame: [100, 999, 500] (value at 3 is default)
         // Third DataFrame: [1000, 3000, 5000] (actual values)
         assert_eq!(
-            stacked_default.data,
-            vec![10, 999, 50, 100, 999, 500, 1000, 3000, 5000]
+            stacked_default.data(),
+            &vec![10, 999, 50, 100, 999, 500, 1000, 3000, 5000]
         );
     }
 
@@ -366,10 +369,10 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(stacked.index.indices.head.size(), 2); // Outer index size
-        assert_eq!(stacked.index.indices.tail.head.indices.len(), 12); // Inner index size
+        assert_eq!(stacked.index().indices.head.size(), 2); // Outer index size
+        assert_eq!(stacked.index().indices.tail.head.indices.len(), 12); // Inner index size
         assert_eq!(
-            stacked.index.indices.tail.head.indices,
+            stacked.index().indices.tail.head.indices,
             vec![1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].into()
         ); // Inner index
 
@@ -378,7 +381,7 @@ mod tests {
             0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, // df1 values
             0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, // df2 values
         ];
-        assert_eq!(stacked.data, expected_data);
+        assert_eq!(stacked.data(), &expected_data);
     }
 
     #[test]
@@ -406,18 +409,18 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(stacked.index.indices.head.size(), 2); // Outer index size
-        assert_eq!(stacked.index.indices.tail.head.indices.len(), 24); // Inner index size (union of both indices)
+        assert_eq!(stacked.index().indices.head.size(), 2); // Outer index size
+        assert_eq!(stacked.index().indices.tail.head.indices.len(), 24); // Inner index size (union of both indices)
 
         // Union of indices should be [0, 1, 2, 3, ..., 22, 23]
         let expected_indices: Vec<i32> = (0..24).collect();
         assert_eq!(
-            stacked.index.indices.tail.head.indices,
+            stacked.index().indices.tail.head.indices,
             expected_indices.into()
         );
 
         // Verify data length
-        assert_eq!(stacked.data.len(), 48); // 24 indices * 2 DataFrames
+        assert_eq!(stacked.data().len(), 48); // 24 indices * 2 DataFrames
     }
 
     #[test]
@@ -446,13 +449,13 @@ mod tests {
 
         // The union of indices should be [1, 2, 3]
         assert_eq!(
-            stacked.index.indices.tail.head.indices,
+            stacked.index().indices.tail.head.indices,
             vec![1, 2, 3].into()
         );
 
         // First DataFrame should use default values for all indices
         // Second DataFrame should use actual values
-        assert_eq!(stacked.data, vec![-999, -999, -999, 10, 20, 30]);
+        assert_eq!(stacked.data(), &vec![-999, -999, -999, 10, 20, 30]);
 
         // This would panic without a fix because it tries to use Nearest extrapolation
         // on an empty DataFrame, but with our fix it should work correctly
@@ -466,13 +469,13 @@ mod tests {
 
         // The union of indices should be [1, 2, 3]
         assert_eq!(
-            stacked_nearest.index.indices.tail.head.indices,
+            stacked_nearest.index().indices.tail.head.indices,
             vec![1, 2, 3].into()
         );
 
         // First DataFrame should use default values for all indices (since it's empty)
         // Second DataFrame should use actual values
-        assert_eq!(stacked_nearest.data, vec![-999, -999, -999, 10, 20, 30]);
+        assert_eq!(stacked_nearest.data(), &vec![-999, -999, -999, 10, 20, 30]);
     }
 
     #[test]
@@ -505,7 +508,7 @@ mod tests {
         .unwrap();
 
         // The union of all indices should have at least 20 elements
-        assert!(stacked_prev.index.indices.tail.head.indices.len() >= 20);
+        assert!(stacked_prev.index().indices.tail.head.indices.len() >= 20);
 
         // Test Next interpolation
         let stacked_next = DataFrame::stack_sparse(
@@ -517,8 +520,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            stacked_next.index.indices.tail.head.indices,
-            stacked_prev.index.indices.tail.head.indices
+            stacked_next.index().indices.tail.head.indices,
+            stacked_prev.index().indices.tail.head.indices
         );
 
         // Test Default interpolation and extrapolation
@@ -531,11 +534,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            stacked_default.index.indices.tail.head.indices,
-            stacked_prev.index.indices.tail.head.indices
+            stacked_default.index().indices.tail.head.indices,
+            stacked_prev.index().indices.tail.head.indices
         );
 
         // Verify that the default value appears in the data
-        assert!(stacked_default.data.contains(&-999));
+        assert!(stacked_default.data().contains(&-999));
     }
 }
