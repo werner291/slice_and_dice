@@ -181,7 +181,7 @@ mod tests {
         let index = NumericRangeIndex::<i32>::new(0, 3); // [0, 1, 2]
 
         // Build a DataFrame where each value is the index squared
-        let df = DataFrame::build_from_index(&index, |i| i * i);
+        let df = DataFrame::build_from_index(index, |i| i * i);
 
         assert_eq!(df.data().len(), 3);
         assert_eq!(df[0], 0);
@@ -291,12 +291,12 @@ where
         DataFrame::new(self.index().clone(), data)
     }
 
-    pub fn build_from_index<F>(index: &I, mut f: F) -> DataFrame<I, Vec<T>>
+    pub fn build_from_index<F>(index: I, mut f: F) -> DataFrame<I, Vec<T>>
     where
         F: FnMut(I::Value<'_>) -> T,
     {
         let data = index.iter().map(|v| f(v)).collect();
-        DataFrame::new(index.clone(), data)
+        DataFrame::new(index, data)
     }
 }
 
