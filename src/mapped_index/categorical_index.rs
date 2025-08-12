@@ -1,43 +1,33 @@
-use std::marker::PhantomData;
-use super::MappedIndex;
-
-/// A value in a categorical index, referencing a value in the index and its position.
-#[derive(Debug, PartialEq, Eq)]
-pub struct CategoricalValue<'idx, T, Tag> {
-    /// Reference to the value in the index.
-    pub value: &'idx T,
-    /// The position of the value in the index.
-    index: usize,
-    _phantom: PhantomData<&'idx Tag>,
-}
-
-impl<'idx, T: Copy, Tag> Copy for CategoricalValue<'idx, T, Tag> {}
-impl<'idx, T: Copy, Tag> Clone for CategoricalValue<'idx, T, Tag> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
+use super::VariableRange;
 
 /// An index for categorical values, mapping indices to values of type `T`.
-pub struct CategoricalIndex<T, Tag> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CategoricalRange<T> {
     /// The values stored in the index.
     pub values: Vec<T>,
-    pub _phantom: PhantomData<Tag>,
 }
 
-impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for CategoricalIndex<T, Tag> {
-    type Value = CategoricalValue<'idx, T, Tag>;
+/// An index for categorical values, mapping indices to values of type `T` using a slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SliceCategoricalIndex<'a, T> {
+    /// The values stored in the index.
+    pub values: &'a [T],
+}
+
+impl<'a, T: 'a + Sync + Clone> VariableRange for SliceCategoricalIndex<'a, T> {
+    type Value<'b>
+        = &'a T
+    where
+        Self: 'b;
+
     /// Returns an iterator over all categorical values in the index.
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
-        self.values.iter().enumerate().map(move |(index, v)| CategoricalValue { value: v, index, _phantom: PhantomData })
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.values.into_iter()
     }
-    /// Returns the flat index for a categorical value (its position).
-    fn to_flat_index(&self, value: Self::Value) -> usize {
-        value.index
-    }
+
     /// Returns the categorical value for a given flat index.
-    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
-        CategoricalValue { value: &self.values[index], index, _phantom: PhantomData }
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        &self.values[index]
     }
     /// Returns the number of values in the categorical index.
     fn size(&self) -> usize {
@@ -45,54 +35,36 @@ impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for CategoricalIn
     }
 }
 
-impl<'idx, T: Copy + 'idx, Tag: 'idx> MappedIndex<'idx, usize> for &CategoricalIndex<T, Tag> {
-    type Value = <CategoricalIndex<T, Tag> as MappedIndex<'idx, usize>>::Value;
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> {
-        (*self).iter()
+impl<T: Sync + Clone> VariableRange for CategoricalRange<T> {
+    type Value<'a>
+        = &'a T
+    where
+        T: 'a;
+
+    /// Returns an iterator over all categorical values in the index.
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.values.iter()
     }
-    fn to_flat_index(&self, value: Self::Value) -> usize {
-        (*self).to_flat_index(value)
+    /// Returns the categorical value for a given flat index.
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        &self.values[index]
     }
-    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
-        (*self).from_flat_index(index)
-    }
+    /// Returns the number of values in the categorical index.
     fn size(&self) -> usize {
-        (*self).size()
+        self.values.len()
     }
 }
 
-impl<T: Copy, Tag> CategoricalIndex<T, Tag> {
+impl<T> CategoricalRange<T> {
     /// Create a new CategoricalIndex from a vector of values.
-    pub fn new(values: Vec<T>) -> Self {
-        Self { values, _phantom: PhantomData }
-    }
-    /// Returns a reference to the value at the given categorical value.
-    pub fn at<'idx>(&'idx self, cat_value: CategoricalValue<'idx, T, Tag>) -> &'idx T {
-        &self.values[cat_value.index]
+    pub const fn new(values: Vec<T>) -> Self {
+        Self { values }
     }
 }
 
-impl<'idx, T, Tag> CategoricalValue<'idx, T, Tag> {
-    /// Create a new CategoricalValue from a reference and index.
-    pub fn new(value: &'idx T, index: usize) -> Self {
-        Self { value, index, _phantom: PhantomData }
+impl<'a, T> SliceCategoricalIndex<'a, T> {
+    /// Create a new SliceCategoricalIndex from a slice of values.
+    pub const fn new(values: &'a [T]) -> Self {
+        Self { values }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mapped_index::MappedIndex;
-
-    struct Tag;
-
-    #[test]
-    fn test_flat_index_round_trip() {
-        let index = CategoricalIndex { values: vec![1, 2, 3], _phantom: PhantomData::<Tag> };
-        let cat_val = index.from_flat_index(2);
-        let flat = index.to_flat_index(cat_val);
-        let round = index.from_flat_index(flat);
-        assert_eq!(cat_val.index, round.index);
-        assert_eq!(*cat_val.value, *round.value);
-    }
-} 

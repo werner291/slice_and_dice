@@ -1,177 +1,351 @@
-use super::MappedIndex;
-use tuple_list::Tuple;
+#![allow(non_snake_case)]
+
+use crate::mapped_index::VariableRange;
+use frunk::hlist::{HList, h_cons};
+use frunk::indices::{Here, There};
+use frunk::{HCons, HNil};
+
+pub type Dim0 = Here;
+pub type Dim1 = There<Dim0>;
+pub type Dim2 = There<Dim1>;
+pub type Dim3 = There<Dim2>;
+pub type Dim4 = There<Dim3>;
 
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
 /// The flat index is computed by flattening the tuple of indices into a single dimension.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompoundIndex<Indices> {
     /// The tuple of sub-indices.
     pub indices: Indices,
 }
 
-impl<Indices: PartialEq> PartialEq for CompoundIndex<Indices> {
-    fn eq(&self, other: &Self) -> bool {
-        self.indices == other.indices
-    }
-}
-
-impl<Indices: Eq> Eq for CompoundIndex<Indices> {}
-
 impl<Indices> CompoundIndex<Indices> {
-    pub fn new(indices: Indices) -> Self {
+    pub const fn new(indices: Indices) -> Self {
         Self { indices }
     }
-    pub fn to_flat_index<'idx, IdxTuple>(&self, value: <Self as MappedIndex<'idx, IdxTuple>>::Value) -> usize
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::to_flat_index(self, value)
-    }
-    pub fn from_flat_index<'idx, IdxTuple>(&'idx self, index: usize) -> <Self as MappedIndex<'idx, IdxTuple>>::Value
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::from_flat_index(self, index)
-    }
-    pub fn size<'idx, IdxTuple>(&self) -> usize
-    where
-        Self: MappedIndex<'idx, IdxTuple>,
-    {
-        <Self as MappedIndex<'idx, IdxTuple>>::size(self)
+}
+
+impl<A: VariableRange> CompoundIndex<(A,)> {
+    pub fn collapse_single(self) -> A {
+        self.indices.0
     }
 }
 
-// Recursive MappedIndex implementation for tuples of indices
-impl<'idx> MappedIndex<'idx, ()> for CompoundIndex<()> {
-    type Value = ();
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> { std::iter::empty() }
-    fn to_flat_index(&self, _value: Self::Value) -> usize { 0 }
-    fn from_flat_index(&'idx self, _index: usize) -> Self::Value { () }
-    fn size(&self) -> usize { 1 }
+pub trait IndexHlist: HList + Sync + Clone {
+    type Value<'a>: Copy + HList
+    where
+        Self: 'a;
+
+    type Refs<'a>: RefIndexHList
+    where
+        Self: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone;
+
+    fn refs(&self) -> Self::Refs<'_>;
+
+    fn size(&self) -> usize;
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_>;
 }
 
-impl<'idx, Head, Tail, IdxHead, IdxTail> MappedIndex<'idx, (IdxHead, IdxTail)> for CompoundIndex<(Head, Tail)>
-where
-    Head: MappedIndex<'idx, IdxHead> + Eq + PartialEq + Clone,
-    Tail: MappedIndex<'idx, IdxTail> + Eq + PartialEq + Clone,
-    Head::Value: Copy,
-    Tail::Value: Copy,
-{
-    type Value = (Head::Value, Tail::Value);
-    fn iter(&'idx self) -> impl Iterator<Item = Self::Value> { std::iter::empty() }
-    fn to_flat_index(&self, value: Self::Value) -> usize {
-        let (head_idx, tail_idx) = &self.indices;
-        let (head_val, tail_val) = value;
-        let head_flat = head_idx.to_flat_index(head_val);
-        let tail_flat = tail_idx.to_flat_index(tail_val);
-        head_flat * tail_idx.size() + tail_flat
+pub trait RefIndexHList: HList + Copy {
+    type Value: Copy + HList;
+
+    fn size(self) -> usize;
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
+}
+
+impl RefIndexHList for HNil {
+    type Value = HNil;
+
+    fn size(self) -> usize {
+        1
     }
-    fn from_flat_index(&'idx self, index: usize) -> Self::Value {
-        let (head_idx, tail_idx) = &self.indices;
-        let tail_size = tail_idx.size();
-        let head_flat = index / tail_size;
-        let tail_flat = index % tail_size;
-        let head_val = head_idx.from_flat_index(head_flat);
-        let tail_val = tail_idx.from_flat_index(tail_flat);
-        (head_val, tail_val)
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+        std::iter::once(HNil)
     }
+}
+
+impl<'a, Head: VariableRange, Tail: RefIndexHList> RefIndexHList for HCons<&'a Head, Tail> {
+    type Value = HCons<Head::Value<'a>, <Tail as RefIndexHList>::Value>;
+
+    fn size(self) -> usize {
+        self.head.size() * self.tail.size()
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
+        self.head
+            .iter()
+            .flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
+    }
+}
+
+impl<Head: VariableRange, Tail: IndexHlist> IndexHlist for HCons<Head, Tail> {
+    type Value<'a>
+        = HCons<<Head as VariableRange>::Value<'a>, <Tail as IndexHlist>::Value<'a>>
+    where
+        Self: 'a;
+
+    type Refs<'a>
+        = HCons<&'a Head, <Tail as IndexHlist>::Refs<'a>>
+    where
+        Self: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        let head_iter = self.head.iter();
+
+        head_iter.flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
+    }
+
+    fn refs(&self) -> Self::Refs<'_> {
+        h_cons(&self.head, self.tail.refs())
+    }
+
     fn size(&self) -> usize {
-        let (head_idx, tail_idx) = &self.indices;
-        head_idx.size() * tail_idx.size()
+        self.head.size() * self.tail.size()
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        let head = self.head.unflatten_index_value(index / self.tail.size());
+        let tail_index = index % self.tail.size();
+        h_cons(head, self.tail.unflatten_index_value(tail_index))
+    }
+}
+impl IndexHlist for HNil {
+    type Value<'a> = HNil;
+    type Refs<'a>
+        = HNil
+    where
+        Self: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        std::iter::once(HNil)
+    }
+
+    fn refs(&self) -> Self::Refs<'_> {
+        HNil
+    }
+
+    fn size(&self) -> usize {
+        1
+    }
+
+    fn unflatten_index_value(&self, _: usize) -> Self::Value<'_> {
+        HNil
     }
 }
 
-// Helper trait to get the Value tuple type for a tuple of indices and their Idx types
-pub trait CompoundIndexValue<'idx, IdxTuple> {
-    type Value: Tuple;
+pub trait HListExt: HList {}
+
+pub trait PluckSplit<At>: HList {
+    type Left: HList;
+    type Extract;
+    type Right: HList;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right);
 }
 
-impl<'idx> CompoundIndexValue<'idx, ()> for () {
-    type Value = ();
+pub type HLConcat<A, B> = <A as HListConcat<B>>::Concat;
+
+pub trait HListConcat<Other: HList>: HList {
+    type Concat: HList;
+
+    fn concat(self, other: Other) -> Self::Concat;
 }
 
-impl<'idx, Head, Tail, IdxHead, IdxTail> CompoundIndexValue<'idx, (IdxHead, IdxTail)> for (Head, Tail)
+impl<Other: HList> HListConcat<Other> for HNil {
+    type Concat = Other;
+
+    fn concat(self, other: Other) -> Self::Concat {
+        other
+    }
+}
+
+impl<Head, Tail, Other: HList> HListConcat<Other> for HCons<Head, Tail>
 where
-    Head: MappedIndex<'idx, IdxHead>,
-    Tail: CompoundIndexValue<'idx, IdxTail>,
+    Tail: HListConcat<Other>,
 {
-    type Value = (Head::Value, <Tail as CompoundIndexValue<'idx, IdxTail>>::Value);
+    type Concat = HCons<Head, Tail::Concat>;
+
+    fn concat(self, other: Other) -> Self::Concat {
+        h_cons(self.head, self.tail.concat(other))
+    }
+}
+
+impl<Head, Tail> PluckSplit<Here> for HCons<Head, Tail>
+where
+    Tail: HList,
+{
+    type Left = HNil;
+    type Extract = Head;
+    type Right = Tail;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
+        (HNil, self.head, self.tail)
+    }
+}
+
+impl<Head, Tail: PluckSplit<ThereTail>, ThereTail> PluckSplit<There<ThereTail>>
+    for HCons<Head, Tail>
+where
+    Tail: HList,
+{
+    type Left = HCons<Head, Tail::Left>;
+    type Extract = Tail::Extract;
+    type Right = Tail::Right;
+
+    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
+        let (l, e, r) = self.tail.pluck_split();
+        (h_cons(self.head, l), e, r)
+    }
+}
+
+impl<Indices: IndexHlist> VariableRange for CompoundIndex<Indices> {
+    type Value<'a>
+        = <Indices as IndexHlist>::Value<'a>
+    where
+        Indices: 'a;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.indices.iter()
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        self.indices.unflatten_index_value(index)
+    }
+
+    fn size(&self) -> usize {
+        self.indices.size()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::categorical_index::CategoricalIndex;
-    use crate::mapped_index::numeric_range_index::NumericRangeIndex;
-    use crate::mapped_index::MappedIndex;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagA;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagB;
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    struct TagC;
+    use crate::mapped_index::VariableRange;
+    use crate::mapped_index::categorical_index::{CategoricalRange, SliceCategoricalIndex};
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
+    use crate::mapped_index::singleton_index::SingletonRange;
+    use frunk::hlist::HNil;
 
     #[test]
-    fn test_compound_index_get() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        assert_eq!(compound.indices.0, cat);
-        assert_eq!(compound.indices.1, num);
+    fn test_compound_index_size() {
+        // Test with a single index
+        let singleton = SingletonRange::new(42);
+        let indices = h_cons(singleton.clone(), HNil);
+        let compound_single = CompoundIndex::new(indices);
+        assert_eq!(compound_single.size(), 1);
+
+        // Test with two indices
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton.clone(), h_cons(categorical.clone(), HNil));
+        let compound_two = CompoundIndex::new(indices);
+        assert_eq!(compound_two.size(), 3); // 1 * 3 = 3
+
+        // Test with three indices
+        let categorical2 = CategoricalRange::new(vec!["a", "b"]);
+        let indices = h_cons(singleton, h_cons(categorical, h_cons(categorical2, HNil)));
+        let compound_three = CompoundIndex::new(indices);
+        assert_eq!(compound_three.size(), 6); // 1 * 3 * 2 = 6
     }
 
     #[test]
-    fn test_flat_index_round_trip_2d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        for i in 0..cat.size() {
-            for j in 0..num.size() {
-                let val = (cat.from_flat_index(i), num.from_flat_index(j));
-                let flat = compound.to_flat_index(val);
-                let round = compound.from_flat_index(flat);
-                assert_eq!(compound.to_flat_index(round), flat);
-                assert_eq!(round, val);
-            }
-        }
+    fn test_compound_index_iteration() {
+        // Test with a single index
+        let singleton = SingletonRange::new(42);
+        let indices = h_cons(singleton.clone(), HNil);
+        let compound_single = CompoundIndex::new(indices);
+
+        let values: Vec<_> = compound_single.iter().collect();
+        assert_eq!(values.len(), 1);
+        assert_eq!(*values[0].head, 42);
+
+        // Test with two indices
+        // With the fixed implementation, we get all combinations of values
+        // For a singleton (1 value) and a categorical index (3 values), we get 3 values
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound_two = CompoundIndex::new(indices);
+
+        let values: Vec<_> = compound_two.iter().collect();
+        assert_eq!(values.len(), 3); // 1 * 3 = 3
+
+        // Check the values
+        assert_eq!(*values[0].head, 42); // First index value
+        assert_eq!(*values[0].tail.head, 1); // First combination
+
+        assert_eq!(*values[1].head, 42); // First index value
+        assert_eq!(*values[1].tail.head, 2); // Second combination
+
+        assert_eq!(*values[2].head, 42); // First index value
+        assert_eq!(*values[2].tail.head, 3); // Third combination
     }
 
     #[test]
-    fn test_size_2d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![10, 20, 30]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 4);
-        let compound = CompoundIndex::new((cat.clone(), num.clone()));
-        assert_eq!(compound.size(), cat.size() * num.size());
+    fn test_compound_index_unflatten() {
+        // Test with two indices
+        let singleton = SingletonRange::new(42);
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound = CompoundIndex::new(indices);
+
+        // Check unflatten_index_value for each index
+        let value0 = compound.unflatten_index_value(0);
+        assert_eq!(*value0.head, 42);
+        assert_eq!(*value0.tail.head, 1);
+
+        let value1 = compound.unflatten_index_value(1);
+        assert_eq!(*value1.head, 42);
+        assert_eq!(*value1.tail.head, 2);
+
+        let value2 = compound.unflatten_index_value(2);
+        assert_eq!(*value2.head, 42);
+        assert_eq!(*value2.tail.head, 3);
     }
 
     #[test]
-    fn test_flat_index_round_trip_3d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
-        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
-        let compound = CompoundIndex::new((cat.clone(), inner));
-        for i in 0..cat.size() {
-            for j in 0..num.size() {
-                for k in 0..cat2.size() {
-                    let val = (cat.from_flat_index(i), (num.from_flat_index(j), cat2.from_flat_index(k)));
-                    let flat = compound.to_flat_index(val);
-                    let round = compound.from_flat_index(flat);
-                    assert_eq!(compound.to_flat_index(round), flat);
-                    assert_eq!(round, val);
-                }
-            }
-        }
+    #[should_panic]
+    fn test_compound_index_unflatten_out_of_bounds() {
+        let singleton = SingletonRange::new(42);
+        let categorical = CategoricalRange::new(vec![1, 2, 3]);
+        let indices = h_cons(singleton, h_cons(categorical, HNil));
+        let compound = CompoundIndex::new(indices);
+
+        // This should panic because the index is out of bounds
+        compound.unflatten_index_value(3);
     }
 
     #[test]
-    fn test_size_3d() {
-        let cat: CategoricalIndex<i32, TagA> = CategoricalIndex::new(vec![1, 2, 3]);
-        let num: NumericRangeIndex<TagB> = NumericRangeIndex::new(0, 2);
-        let cat2: CategoricalIndex<i32, TagC> = CategoricalIndex::new(vec![5, 6]);
-        let inner = CompoundIndex::new((num.clone(), cat2.clone()));
-        let compound = CompoundIndex::new((cat.clone(), inner));
-        assert_eq!(compound.size(), cat.size() * num.size() * cat2.size());
+    fn test_compound_index_iteration_issue() {
+        // This test reproduces the issue described in the problem statement
+        // Create a SliceCategoricalIndex with two values
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct UseFilter(bool);
+
+        let use_filters = [UseFilter(false), UseFilter(true)];
+        let solvers_vars = SliceCategoricalIndex::new(&use_filters);
+
+        // Create a NumericRangeIndex with multiple values
+        let tree_names_range = NumericRangeIndex::new(0, 3);
+
+        // Create a CompoundIndex with both indices
+        let variables = CompoundIndex::new(h_cons(solvers_vars, h_cons(tree_names_range, HNil)));
+
+        // Check the size
+        assert_eq!(variables.size(), 6); // 2 * 3 = 6
+
+        // Collect all values from the iterator
+        let values: Vec<_> = variables.iter().collect();
+
+        // With the old implementation, we would only get one value due to zip()
+        // assert_eq!(values.len(), 1);
+
+        // With the fixed implementation, we should get 6 values (2 * 3)
+        assert_eq!(values.len(), 6);
     }
-} 
+}

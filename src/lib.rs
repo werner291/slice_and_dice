@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Top-level exports for core data structures and index types.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod data_frame;
+pub mod mapped_index;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+/// The main DataFrame type for associating an index with data.
+pub use crate::data_frame::core::DataFrame;
+/// Numeric range index (contiguous, 0..N or arbitrary start..end).
+pub use crate::mapped_index::numeric_range::NumericRangeIndex;
+/// Sparse numeric index (arbitrary, sorted i64 indices).
+pub use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
