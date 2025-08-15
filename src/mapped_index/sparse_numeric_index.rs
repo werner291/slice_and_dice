@@ -3,7 +3,7 @@ use sorted_vec::SortedSet;
 
 /// A sparse numeric index, holding a sorted Vec of i32 indices.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SparseNumericIndex<I: Ord> {
     pub indices: SortedSet<I>,
 }

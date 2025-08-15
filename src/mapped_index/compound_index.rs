@@ -14,7 +14,7 @@ pub type Dim4 = There<Dim3>;
 /// An index that combines multiple sub-indices into a compound, multi-dimensional index.
 ///
 /// The flat index is computed by flattening the tuple of indices into a single dimension.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompoundIndex<Indices> {
     /// The tuple of sub-indices.

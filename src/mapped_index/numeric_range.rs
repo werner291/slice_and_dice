@@ -92,7 +92,7 @@ macro_rules! nrange_newtype {
 
 /// An index representing a numeric range from `start` to `end` (exclusive).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct NumericRangeIndex<I: Debug> {
     /// The start of the range (inclusive).
     pub start: I,

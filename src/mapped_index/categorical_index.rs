@@ -1,14 +1,14 @@
 use super::VariableRange;
 
 /// An index for categorical values, mapping indices to values of type `T`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CategoricalRange<T> {
     /// The values stored in the index.
     pub values: Vec<T>,
 }
 
 /// An index for categorical values, mapping indices to values of type `T` using a slice.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SliceCategoricalIndex<'a, T> {
     /// The values stored in the index.
     pub values: &'a [T],

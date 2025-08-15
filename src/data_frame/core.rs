@@ -50,7 +50,7 @@ impl<D> FrameData for Vec<D> {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct DataFrame<I, D>
 where
     I: VariableRange,
