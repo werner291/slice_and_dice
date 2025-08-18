@@ -3,6 +3,7 @@
 pub mod categorical_index;
 pub mod compound_index;
 pub mod numeric_range;
+pub mod one_to_many;
 pub mod singleton_index;
 pub mod sparse_numeric_index;
 pub mod union_range;
