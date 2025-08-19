@@ -2,6 +2,8 @@
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::CompoundIndex;
 use frunk::{HCons, HList, HNil};
+use rand::Rng;
+use rand::seq::IteratorRandom;
 use std::ops::Index;
 
 pub trait FrameData: Index<usize> {
@@ -224,6 +226,36 @@ mod tests {
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), None);
     }
+
+    #[test]
+    fn test_choose_rows_without_replacement() {
+        use crate::mapped_index::numeric_range::NumericRangeIndex;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let index = NumericRangeIndex::<i32>::new(0, 5); // indices: 0..=4
+        let data = vec![10, 20, 30, 40, 50];
+        let df = DataFrame::new(index, data);
+
+        // Deterministic selection of 3 unique rows
+        let mut rng = StdRng::seed_from_u64(42);
+        let picked: Vec<_> = df.choose_rows(&mut rng, 3).collect();
+        assert_eq!(picked.len(), 3);
+
+        // Ensure uniqueness of index values
+        let mut idx_vals: Vec<i32> = picked.iter().map(|(i, _)| *i).collect();
+        idx_vals.sort();
+        idx_vals.dedup();
+        assert_eq!(idx_vals.len(), 3);
+
+        // When n exceeds length, we get all rows (order not guaranteed)
+        let mut rng2 = StdRng::seed_from_u64(7);
+        let picked_all: Vec<_> = df.choose_rows(&mut rng2, 10).collect();
+        assert_eq!(picked_all.len(), 5);
+        let mut all_idx: Vec<i32> = picked_all.iter().map(|(i, _)| *i).collect();
+        all_idx.sort();
+        assert_eq!(all_idx, vec![0, 1, 2, 3, 4]);
+    }
 }
 
 impl<I, D> DataFrame<I, D>
@@ -276,6 +308,25 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
         self.index.iter().zip(self.data.iter())
+    }
+
+    /// Choose n rows without replacement using the provided RNG.
+    /// If n >= length, all rows are returned (without guaranteed order).
+    pub fn choose_rows<'a, R>(
+        &'a self,
+        rng: &mut R,
+        n: usize,
+    ) -> impl Iterator<Item = (I::Value<'a>, &'a D::Output)>
+    where
+        R: Rng + ?Sized,
+    {
+        let len = self.data.len();
+        let amount = n.min(len);
+        // Sample unique indices without replacement
+        let indices: Vec<usize> = (0..len).choose_multiple(rng, amount);
+        indices
+            .into_iter()
+            .map(move |i| (self.index.unflatten_index_value(i), &self.data[i]))
     }
 }
 
