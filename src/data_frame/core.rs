@@ -328,6 +328,10 @@ where
             .into_iter()
             .map(move |i| (self.index.unflatten_index_value(i), &self.data[i]))
     }
+
+    pub fn n_rows(&self) -> usize {
+        self.data.len()
+    }
 }
 
 impl<I, T> DataFrame<I, Vec<T>>
