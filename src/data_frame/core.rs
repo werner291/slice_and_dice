@@ -353,6 +353,25 @@ where
         let data = index.iter().map(|v| f(v)).collect();
         DataFrame::new(index, data)
     }
+
+    #[cfg(feature = "rayon")]
+    pub fn build_from_index_par<F>(index: I, f: F) -> DataFrame<I, Vec<T>>
+    where
+        I: VariableRange + Clone + Sync,
+        T: Send,
+        F: Fn(I::Value<'_>) -> T + Sync,
+    {
+        use rayon::prelude::*;
+        let size = index.size();
+        let data: Vec<T> = (0..size)
+            .into_par_iter()
+            .map(|i| {
+                let v = index.unflatten_index_value(i);
+                f(v)
+            })
+            .collect();
+        DataFrame::new(index, data)
+    }
 }
 
 impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
