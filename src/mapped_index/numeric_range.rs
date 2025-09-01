@@ -146,6 +146,6 @@ where
 
     /// Returns the number of values in the numeric range index.
     fn size(&self) -> usize {
-        self.end.distance(&self.start)
+        self.start.distance(&self.end)
     }
 }
