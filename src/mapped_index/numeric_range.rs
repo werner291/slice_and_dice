@@ -100,8 +100,9 @@ pub struct NumericRangeIndex<I: Debug> {
     pub end: I,
 }
 
-impl<I: Debug> NumericRangeIndex<I> {
+impl<I: Debug + Ord> NumericRangeIndex<I> {
     pub fn new(start: I, end: I) -> Self {
+        assert!(start < end, "Start must be less than end.");
         Self { start, end }
     }
 }
