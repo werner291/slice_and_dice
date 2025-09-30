@@ -5,8 +5,9 @@ use crate::data_frame::core::FrameData;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::{
-    CompoundIndex, HLConcat, HListConcat, IndexHlist, PluckSplit, RefIndexHList,
+    CompoundIndex, HLConcat, HListConcat, IndexHlist, RefIndexHList,
 };
+use crate::mapped_index::util::pluck_split::PluckSplitImpl;
 use itertools::Itertools;
 use num_traits::Zero;
 
@@ -22,11 +23,11 @@ where
         &'a self,
     ) -> DataFrame<&'a Middle, Vec<Vec<&'a D::Output>>>
     where
-        Indices::Refs<'a>: PluckSplit<Idx, Extract = &'a Middle>,
-        <Indices::Refs<'a> as PluckSplit<Idx>>::Left: RefIndexHList,
-        <Indices::Refs<'a> as PluckSplit<Idx>>::Right: RefIndexHList,
+        Indices::Refs<'a>: PluckSplitImpl<Idx, Extract = &'a Middle>,
+        <Indices::Refs<'a> as PluckSplitImpl<Idx>>::Left: RefIndexHList,
+        <Indices::Refs<'a> as PluckSplitImpl<Idx>>::Right: RefIndexHList,
     {
-        let (l, m, r) = self.index().indices.refs().pluck_split();
+        let (l, m, r) = self.index().indices.refs().pluck_split_impl();
 
         let m_size = m.size();
         let r_size = r.size();
@@ -56,23 +57,26 @@ where
         f: F,
     ) -> DataFrame<
         CompoundIndex<
-            HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>,
+            HLConcat<
+                <Indices as PluckSplitImpl<Idx>>::Left,
+                <Indices as PluckSplitImpl<Idx>>::Right,
+            >,
         >,
         Vec<R>,
     >
     where
         Indices: 'a,
-        Indices: PluckSplit<Idx>,
-        <Indices as PluckSplit<Idx>>::Left:
-            IndexHlist + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
-        <Indices as PluckSplit<Idx>>::Extract: VariableRange,
-        <Indices as PluckSplit<Idx>>::Right: IndexHlist,
-        HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>:
+        Indices: PluckSplitImpl<Idx>,
+        <Indices as PluckSplitImpl<Idx>>::Left:
+            IndexHlist + HListConcat<<Indices as PluckSplitImpl<Idx>>::Right>,
+        <Indices as PluckSplitImpl<Idx>>::Extract: VariableRange,
+        <Indices as PluckSplitImpl<Idx>>::Right: IndexHlist,
+        HLConcat<<Indices as PluckSplitImpl<Idx>>::Left, <Indices as PluckSplitImpl<Idx>>::Right>:
             IndexHlist,
         F: for<'any> Fn(StridedIndexView<'any, D>) -> R,
     {
         let refs = self.index().indices.clone();
-        let (l, m, r) = refs.pluck_split();
+        let (l, m, r) = refs.pluck_split_impl();
         let l_size = l.size();
         let m_size = m.size();
         let r_size = r.size();
@@ -101,17 +105,20 @@ where
         self,
     ) -> DataFrame<
         CompoundIndex<
-            HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>,
+            HLConcat<
+                <Indices as PluckSplitImpl<Idx>>::Left,
+                <Indices as PluckSplitImpl<Idx>>::Right,
+            >,
         >,
         Vec<<D::Output as std::ops::Div<f64>>::Output>,
     >
     where
-        Indices: PluckSplit<Idx>,
-        <Indices as PluckSplit<Idx>>::Left:
-            IndexHlist + HListConcat<<Indices as PluckSplit<Idx>>::Right>,
-        <Indices as PluckSplit<Idx>>::Extract: VariableRange,
-        <Indices as PluckSplit<Idx>>::Right: IndexHlist,
-        HLConcat<<Indices as PluckSplit<Idx>>::Left, <Indices as PluckSplit<Idx>>::Right>:
+        Indices: PluckSplitImpl<Idx>,
+        <Indices as PluckSplitImpl<Idx>>::Left:
+            IndexHlist + HListConcat<<Indices as PluckSplitImpl<Idx>>::Right>,
+        <Indices as PluckSplitImpl<Idx>>::Extract: VariableRange,
+        <Indices as PluckSplitImpl<Idx>>::Right: IndexHlist,
+        HLConcat<<Indices as PluckSplitImpl<Idx>>::Left, <Indices as PluckSplitImpl<Idx>>::Right>:
             IndexHlist,
         D::Output: Copy + Zero + std::ops::AddAssign + std::ops::Div<f64>,
         <D::Output as std::ops::Div<f64>>::Output: Copy,
@@ -134,13 +141,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::compound_index::{Dim0, Dim1};
     use crate::mapped_index::numeric_range::NumericRangeIndex;
+    use frunk::HNil;
     use frunk::hlist::h_cons;
     use frunk::indices::{Here, There};
-    use frunk::{HNil, hlist, hlist_pat};
-    use itertools::iproduct;
-
     // Test that mean_over_dim works correctly (which uses iter_over_dim internally)
     #[test]
     fn test_mean_over_dim() {

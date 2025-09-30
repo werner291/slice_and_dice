@@ -142,14 +142,6 @@ impl IndexHlist for HNil {
 
 pub trait HListExt: HList {}
 
-pub trait PluckSplit<At>: HList {
-    type Left: HList;
-    type Extract;
-    type Right: HList;
-
-    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right);
-}
-
 pub type HLConcat<A, B> = <A as HListConcat<B>>::Concat;
 
 pub trait HListConcat<Other: HList>: HList {
@@ -174,34 +166,6 @@ where
 
     fn concat(self, other: Other) -> Self::Concat {
         h_cons(self.head, self.tail.concat(other))
-    }
-}
-
-impl<Head, Tail> PluckSplit<Here> for HCons<Head, Tail>
-where
-    Tail: HList,
-{
-    type Left = HNil;
-    type Extract = Head;
-    type Right = Tail;
-
-    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
-        (HNil, self.head, self.tail)
-    }
-}
-
-impl<Head, Tail: PluckSplit<ThereTail>, ThereTail> PluckSplit<There<ThereTail>>
-    for HCons<Head, Tail>
-where
-    Tail: HList,
-{
-    type Left = HCons<Head, Tail::Left>;
-    type Extract = Tail::Extract;
-    type Right = Tail::Right;
-
-    fn pluck_split(self) -> (Self::Left, Self::Extract, Self::Right) {
-        let (l, e, r) = self.tail.pluck_split();
-        (h_cons(self.head, l), e, r)
     }
 }
 

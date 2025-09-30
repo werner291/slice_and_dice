@@ -7,6 +7,7 @@ pub mod one_to_many;
 pub mod singleton_index;
 pub mod sparse_numeric_index;
 pub mod union_range;
+pub mod util;
 
 /// A trait for types that provide a range of values of a certain variable.
 pub trait VariableRange: Sync + Clone {
