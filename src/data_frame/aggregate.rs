@@ -129,7 +129,7 @@ where
 
     /// Aggregate over the dimension specified by typenum.
     pub fn aggregate_over_dim<'a, Idx, F, R>(
-        self,
+        &'a self,
         f: F,
     ) -> DataFrame<
         CompoundIndex<
@@ -141,7 +141,6 @@ where
         Vec<R>,
     >
     where
-        Indices: 'a,
         Indices: PluckSplitImpl<Idx>,
         <Indices as PluckSplitImpl<Idx>>::Left:
             IndexHlist + HListConcat<<Indices as PluckSplitImpl<Idx>>::Right>,
@@ -177,7 +176,7 @@ where
     ///
     /// Uses the Mean trait to compute the mean of each strided slice.
     pub fn mean_over_dim<'a, Idx>(
-        self,
+        &'a self,
     ) -> DataFrame<
         CompoundIndex<
             HLConcat<
