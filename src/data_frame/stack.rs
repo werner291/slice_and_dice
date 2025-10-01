@@ -40,6 +40,27 @@ where
     ///
     /// The top-level index selects the original DataFrame, and the lower-level index is from the original DataFrames.
     /// Returns an error if the inner indices are not compatible (i.e., not equal).
+    ///
+    /// # Examples
+    ///
+    /// Basic usage stacking two DataFrames with matching inner indices:
+    ///
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    ///
+    /// // Two frames with the same inner index [0, 1, 2]
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let a = DataFrame::new(idx.clone(), vec![10, 20, 30]);
+    /// let b = DataFrame::new(idx.clone(), vec![40, 50, 60]);
+    ///
+    /// // Stack into a compound-indexed frame: (outer: 0..2) x (inner: 0..3)
+    /// let stacked = DataFrame::stack([a, b]).unwrap();
+    ///
+    /// // The stacked frame has 2 x 3 = 6 rows.
+    /// assert_eq!(stacked.n_rows(), 6);
+    /// // Data order is row-major by outer index then inner index.
+    /// assert_eq!(stacked.data(), &vec![10, 20, 30, 40, 50, 60]);
+    /// ```
     pub fn stack(
         dfs: impl IntoIterator<Item = DataFrame<I, D>>,
     ) -> Option<DataFrame<CompoundIndex<HList![NumericRangeIndex<usize>, I]>, Vec<D::Output>>> {
@@ -85,6 +106,36 @@ where
     /// * `interpolation` - The method to use for interpolating missing values
     /// * `extrapolation` - The method to use for extrapolating missing values
     /// * `default_value` - The default value to use when interpolation or extrapolation method is Default
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with sparse indices that do not align exactly. Missing values are
+    /// filled using the provided strategies.
+    ///
+    /// ```
+    /// use slice_and_dice::{DataFrame, SparseNumericIndex};
+    /// use slice_and_dice::data_frame::stack::{InterpolationMethod, ExtrapolationMethod};
+    ///
+    /// // First frame at indices {1, 3}
+    /// use sorted_vec::SortedSet;
+    /// let a_idx = SparseNumericIndex::new(SortedSet::from(vec![1_i64, 3]));
+    /// let a = DataFrame::new(a_idx, vec![10, 30]);
+    ///
+    /// // Second frame at indices {2, 4}
+    /// let b_idx = SparseNumericIndex::new(SortedSet::from(vec![2_i64, 4]));
+    /// let b = DataFrame::new(b_idx, vec![20, 40]);
+    ///
+    /// // Stack with nearest interpolation and default extrapolation
+    /// let stacked = DataFrame::stack_sparse(
+    ///     [a, b],
+    ///     InterpolationMethod::Nearest,
+    ///     ExtrapolationMethod::Default,
+    ///     0,
+    /// ).unwrap();
+    ///
+    /// // Union of indices is {1, 2, 3, 4}; with two input frames we have 2 x 4 rows.
+    /// assert_eq!(stacked.n_rows(), 8);
+    /// ```
     pub fn stack_sparse(
         dfs: impl IntoIterator<Item = DataFrame<SparseNumericIndex<I>, D>>,
         interpolation: InterpolationMethod,

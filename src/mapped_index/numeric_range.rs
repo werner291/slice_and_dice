@@ -101,6 +101,15 @@ pub struct NumericRangeIndex<I: Debug> {
 }
 
 impl<I: Debug + Ord> NumericRangeIndex<I> {
+    /// Create a new numeric range index [start, end) (end exclusive).
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::NumericRangeIndex;
+    /// use slice_and_dice::mapped_index::VariableRange;
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// assert_eq!(idx.size(), 3);
+    /// ```
     pub fn new(start: I, end: I) -> Self {
         assert!(start < end, "Start must be less than end.");
         Self { start, end }

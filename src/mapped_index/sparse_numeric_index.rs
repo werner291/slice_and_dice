@@ -9,7 +9,16 @@ pub struct SparseNumericIndex<I: Ord> {
 }
 
 impl<I: Ord + Copy> SparseNumericIndex<I> {
-    /// Create a new SparseNumericIndex from a Vec. Panics if not sorted.
+    /// Create a new SparseNumericIndex from a sorted set of indices.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::SparseNumericIndex;
+    /// use slice_and_dice::mapped_index::VariableRange;
+    /// use sorted_vec::SortedSet;
+    /// let idx = SparseNumericIndex::new(SortedSet::from(vec![1_i64, 3, 5]));
+    /// assert_eq!(idx.size(), 3);
+    /// ```
     pub fn new(indices: SortedSet<I>) -> Self {
         Self { indices }
     }

@@ -64,6 +64,227 @@ where
     pub data: D,
 }
 
+impl<I, D> DataFrame<I, D>
+where
+    I: VariableRange,
+    D: FrameData,
+{
+    /// Construct a DataFrame from an index and a data collection.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with a numeric range index and Vec data:
+    ///
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![10, 20, 30]);
+    /// assert_eq!(df.n_rows(), 3);
+    /// ```
+    pub fn new(index: I, data: D) -> Self {
+        assert_eq!(
+            index.size(),
+            data.len(),
+            "Index and data must have the same length"
+        );
+        Self { index, data }
+    }
+
+    /// Returns a reference to the index.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// use slice_and_dice::mapped_index::VariableRange;
+    /// let idx = NumericRangeIndex::<i32>::new(0, 2);
+    /// let df = DataFrame::new(idx.clone(), vec![1, 2]);
+    /// assert_eq!(df.index().size(), idx.size());
+    /// ```
+    pub fn index(&self) -> &I {
+        &self.index
+    }
+
+    /// Returns a reference to the data.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![10, 20, 30]);
+    /// assert_eq!(df.data()[1], 20);
+    /// ```
+    pub fn data(&self) -> &D {
+        &self.data
+    }
+
+    /// Returns a mutable reference to the data.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 2);
+    /// let mut df = DataFrame::new(idx, vec![1, 2]);
+    /// df.data_mut()[0] = 9;
+    /// assert_eq!(df.data()[0], 9);
+    /// ```
+    pub fn data_mut(&mut self) -> &mut D {
+        &mut self.data
+    }
+
+    /// Returns a reference to the data at the given index.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![10, 20, 30]);
+    /// assert_eq!(*df.data_at(2), 30);
+    /// ```
+    pub fn data_at(&self, index: usize) -> &D::Output {
+        &self.data[index]
+    }
+
+    /// Iterate over (index_value, &data) pairs.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![10, 20, 30]);
+    /// let collected: Vec<(i32, i32)> = df.iter().map(|(i, v)| (i, *v)).collect();
+    /// assert_eq!(collected, vec![(0,10), (1,20), (2,30)]);
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
+        self.index.iter().zip(self.data.iter())
+    }
+
+    //noinspection RsNeedlessLifetimes
+    /// Choose n rows without replacement using the provided RNG.
+    /// If n >= length, all rows are returned (without guaranteed order).
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// use rand::SeedableRng;
+    /// use rand::rngs::StdRng;
+    /// let idx = NumericRangeIndex::<i32>::new(0, 5);
+    /// let df = DataFrame::new(idx, vec![10, 20, 30, 40, 50]);
+    /// let mut rng = StdRng::seed_from_u64(123);
+    /// let picked: Vec<(i32, i32)> = df.choose_rows(&mut rng, 3).map(|(i, v)| (i, *v)).collect();
+    /// assert_eq!(picked.len(), 3);
+    /// ```
+    pub fn choose_rows<'a, R>(
+        &'a self,
+        rng: &mut R,
+        n: usize,
+    ) -> impl Iterator<Item = (I::Value<'a>, &'a D::Output)>
+    where
+        R: Rng + ?Sized,
+    {
+        let len = self.data.len();
+        let amount = n.min(len);
+        // Sample unique indices without replacement
+        let indices: Vec<usize> = (0..len).choose_multiple(rng, amount);
+        indices
+            .into_iter()
+            .map(move |i| (self.index.unflatten_index_value(i), &self.data[i]))
+    }
+
+    /// Return number of rows in the DataFrame.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 2);
+    /// let df = DataFrame::new(idx, vec![1, 2]);
+    /// assert_eq!(df.n_rows(), 2);
+    /// ```
+    pub fn n_rows(&self) -> usize {
+        self.data.len()
+    }
+}
+
+impl<I, T> DataFrame<I, Vec<T>>
+where
+    I: VariableRange + Clone,
+{
+    /// Map each element of the DataFrame's data to a new value, keeping the same index.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![1, 2, 3]);
+    /// let df2 = df.map(|v| v * 10);
+    /// assert_eq!(df2.data(), &vec![10, 20, 30]);
+    /// ```
+    pub fn map<U, F>(&self, mut f: F) -> DataFrame<I, Vec<U>>
+    where
+        F: FnMut(&T) -> U,
+    {
+        let data = self.data().iter().map(|v| f(v)).collect();
+        DataFrame::new(self.index().clone(), data)
+    }
+
+    /// Build a DataFrame by mapping each index value to a data value.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 4);
+    /// let df = DataFrame::build_from_index(idx, |i| i * i);
+    /// assert_eq!(df.data(), &vec![0, 1, 4, 9]);
+    /// ```
+    pub fn build_from_index<F>(index: I, mut f: F) -> DataFrame<I, Vec<T>>
+    where
+        F: FnMut(I::Value<'_>) -> T,
+    {
+        let data = index.iter().map(|v| f(v)).collect();
+        DataFrame::new(index, data)
+    }
+
+    #[cfg(feature = "rayon")]
+    pub fn build_from_index_par<F>(index: I, f: F) -> DataFrame<I, Vec<T>>
+    where
+        I: VariableRange + Clone + Sync,
+        T: Send,
+        F: Fn(I::Value<'_>) -> T + Sync,
+    {
+        use rayon::prelude::*;
+        let size = index.size();
+        let data: Vec<T> = (0..size)
+            .into_par_iter()
+            .map(|i| {
+                let v = index.unflatten_index_value(i);
+                f(v)
+            })
+            .collect();
+        DataFrame::new(index, data)
+    }
+}
+
+impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
+where
+    I: VariableRange + 'static,
+    D: FrameData,
+{
+    pub fn collapse_single_index(self) -> DataFrame<I, D> {
+        DataFrame::new(self.index.indices.head, self.data)
+    }
+}
+
+impl<I, D> Index<usize> for DataFrame<I, D>
+where
+    I: VariableRange,
+    D: FrameData,
+{
+    type Output = D::Output;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,10 +336,6 @@ mod tests {
         assert_eq!(*df.data_at(0), 100);
         assert_eq!(*df.data_at(1), 20);
         assert_eq!(*df.data_at(2), 30);
-
-        // Test internal_data() and internal_index()
-        assert_eq!(df.internal_data().len(), 3);
-        assert_eq!(df.internal_index().size(), 3);
     }
 
     #[test]
@@ -249,143 +466,5 @@ mod tests {
         let mut all_idx: Vec<i32> = picked_all.iter().map(|(i, _)| *i).collect();
         all_idx.sort();
         assert_eq!(all_idx, vec![0, 1, 2, 3, 4]);
-    }
-}
-
-impl<I, D> DataFrame<I, D>
-where
-    I: VariableRange,
-    D: FrameData,
-{
-    pub fn new(index: I, data: D) -> Self {
-        assert_eq!(
-            index.size(),
-            data.len(),
-            "Index and data must have the same length"
-        );
-        Self { index, data }
-    }
-
-    /// Returns a reference to the index.
-    pub fn index(&self) -> &I {
-        &self.index
-    }
-
-    /// Returns a reference to the data.
-    pub fn data(&self) -> &D {
-        &self.data
-    }
-
-    /// Returns a mutable reference to the data.
-    pub fn data_mut(&mut self) -> &mut D {
-        &mut self.data
-    }
-
-    /// Returns a reference to the data at the given index.
-    pub fn data_at(&self, index: usize) -> &D::Output {
-        &self.data[index]
-    }
-
-    /// Returns a reference to the internal data structure.
-    /// This is for internal use only and should not be used by external code.
-    #[doc(hidden)]
-    pub fn internal_data(&self) -> &D {
-        &self.data
-    }
-
-    /// Returns a reference to the internal index structure.
-    /// This is for internal use only and should not be used by external code.
-    #[doc(hidden)]
-    pub fn internal_index(&self) -> &I {
-        &self.index
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (I::Value<'_>, &D::Output)> + '_ {
-        self.index.iter().zip(self.data.iter())
-    }
-
-    /// Choose n rows without replacement using the provided RNG.
-    /// If n >= length, all rows are returned (without guaranteed order).
-    pub fn choose_rows<'a, R>(
-        &'a self,
-        rng: &mut R,
-        n: usize,
-    ) -> impl Iterator<Item = (I::Value<'a>, &'a D::Output)>
-    where
-        R: Rng + ?Sized,
-    {
-        let len = self.data.len();
-        let amount = n.min(len);
-        // Sample unique indices without replacement
-        let indices: Vec<usize> = (0..len).choose_multiple(rng, amount);
-        indices
-            .into_iter()
-            .map(move |i| (self.index.unflatten_index_value(i), &self.data[i]))
-    }
-
-    pub fn n_rows(&self) -> usize {
-        self.data.len()
-    }
-}
-
-impl<I, T> DataFrame<I, Vec<T>>
-where
-    I: VariableRange + Clone,
-{
-    pub fn map<U, F>(&self, mut f: F) -> DataFrame<I, Vec<U>>
-    where
-        F: FnMut(&T) -> U,
-    {
-        let data = self.data().iter().map(|v| f(v)).collect();
-        DataFrame::new(self.index().clone(), data)
-    }
-
-    pub fn build_from_index<F>(index: I, mut f: F) -> DataFrame<I, Vec<T>>
-    where
-        F: FnMut(I::Value<'_>) -> T,
-    {
-        let data = index.iter().map(|v| f(v)).collect();
-        DataFrame::new(index, data)
-    }
-
-    #[cfg(feature = "rayon")]
-    pub fn build_from_index_par<F>(index: I, f: F) -> DataFrame<I, Vec<T>>
-    where
-        I: VariableRange + Clone + Sync,
-        T: Send,
-        F: Fn(I::Value<'_>) -> T + Sync,
-    {
-        use rayon::prelude::*;
-        let size = index.size();
-        let data: Vec<T> = (0..size)
-            .into_par_iter()
-            .map(|i| {
-                let v = index.unflatten_index_value(i);
-                f(v)
-            })
-            .collect();
-        DataFrame::new(index, data)
-    }
-}
-
-impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
-where
-    I: VariableRange + 'static,
-    D: FrameData,
-{
-    pub fn collapse_single_index(self) -> DataFrame<I, D> {
-        DataFrame::new(self.index.indices.head, self.data)
-    }
-}
-
-impl<I, D> std::ops::Index<usize> for DataFrame<I, D>
-where
-    I: VariableRange,
-    D: FrameData,
-{
-    type Output = D::Output;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[index]
     }
 }
