@@ -1,7 +1,7 @@
 //! Core DataFrame struct and basic methods.
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::CompoundIndex;
-use frunk::{HCons, HList, HNil};
+use frunk::HList;
 use rand::Rng;
 use rand::seq::IteratorRandom;
 use std::ops::Index;

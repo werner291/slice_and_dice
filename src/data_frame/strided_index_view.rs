@@ -1,6 +1,5 @@
 //! StridedIndexView: an iterator for strided access into indexable data.
 use crate::data_frame::core::FrameData;
-use std::ops::Index;
 
 /// An iterator that yields references to elements in a strided pattern from a base index.
 pub struct StridedIndexView<'a, D> {

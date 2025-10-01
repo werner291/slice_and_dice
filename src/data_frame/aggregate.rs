@@ -11,10 +11,8 @@ use crate::mapped_index::util::concat::{HLConcat, HListConcat};
 use crate::mapped_index::util::pluck_split::{
     PluckAt, PluckLeft, PluckRemainder, PluckRight, PluckSplit, PluckSplitImpl,
 };
-use itertools::{Itertools, iproduct};
+use itertools::Itertools;
 use num_traits::Zero;
-use std::marker::PhantomData;
-use std::ops::Index;
 
 pub struct IterOverDim<'a, Data, Plucked, Left, Right, Remainder>
 where
@@ -397,7 +395,7 @@ mod tests {
         let df = DataFrame::new(compound_index, data);
 
         // Iterate over first dimension (rows)
-        let mut iter_rows = df.iter_over_dim::<Here>();
+        let iter_rows = df.iter_over_dim::<Here>();
 
         // Result should be a DataFrame with index [0, 1] and data containing references
         // to the original data elements for each row
@@ -419,7 +417,7 @@ mod tests {
         }
 
         // Iterate over second dimension (columns)
-        let mut iter_cols = df.iter_over_dim::<There<Here>>();
+        let iter_cols = df.iter_over_dim::<There<Here>>();
 
         // Result should be a DataFrame with index [10, 11, 12] and data containing references
         // to the original data elements for each column

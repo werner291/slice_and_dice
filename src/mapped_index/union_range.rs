@@ -72,7 +72,7 @@ impl<R: VariableRange> VariableRange for UnionRange<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mapped_index::numeric_range::{NumericRangeIndex, NumericRangeValue};
+    use crate::mapped_index::numeric_range::NumericRangeIndex;
     use crate::mapped_index::singleton_index::{CopySingletonRange, SingletonRange};
 
     #[test]

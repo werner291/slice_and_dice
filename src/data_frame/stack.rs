@@ -7,7 +7,6 @@ use crate::mapped_index::sparse_numeric_index::SparseNumericIndex;
 use frunk::{HList, hlist};
 use sorted_vec::SortedSet;
 use std::cmp::Ordering;
-use std::ops::Index;
 
 /// Interpolation method for missing data points.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

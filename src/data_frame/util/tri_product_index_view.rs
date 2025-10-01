@@ -87,7 +87,6 @@ where
 mod tests {
     use super::*;
     use itertools::iproduct;
-    use std::ops::Index as _;
 
     #[test]
     fn tri_product_index_view_matches_iproduct_order() {
