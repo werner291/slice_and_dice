@@ -3,6 +3,7 @@
 use super::core::DataFrame;
 use crate::data_frame::core::FrameData;
 use crate::data_frame::strided_index_view::StridedIndexView;
+use crate::data_frame::util::mean::Mean;
 use crate::data_frame::util::tri_product_index_view::TriProductIndexView;
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::{CompoundIndex, IndexHlist};
@@ -12,7 +13,6 @@ use crate::mapped_index::util::pluck_split::{
     PluckAt, PluckLeft, PluckRemainder, PluckRight, PluckSplit, PluckSplitImpl,
 };
 use itertools::Itertools;
-use num_traits::Zero;
 
 pub struct IterOverDim<'a, Data, Plucked, Left, Right, Remainder>
 where
@@ -175,8 +175,7 @@ where
 
     /// Compute the mean over the dimension specified by typenum.
     ///
-    /// The mean is computed as the sum divided by the count (as f64), using the output of Div<f64>.
-    /// Only works for types that implement Div<f64> (e.g., f64, f32).
+    /// Uses the Mean trait to compute the mean of each strided slice.
     pub fn mean_over_dim<'a, Idx>(
         self,
     ) -> DataFrame<
@@ -186,7 +185,7 @@ where
                 <Indices as PluckSplitImpl<Idx>>::Right,
             >,
         >,
-        Vec<<D::Output as std::ops::Div<f64>>::Output>,
+        Vec<D::Output>,
     >
     where
         Indices: PluckSplitImpl<Idx>,
@@ -196,20 +195,11 @@ where
         <Indices as PluckSplitImpl<Idx>>::Right: IndexHlist,
         HLConcat<<Indices as PluckSplitImpl<Idx>>::Left, <Indices as PluckSplitImpl<Idx>>::Right>:
             IndexHlist,
-        D::Output: Copy + Zero + std::ops::AddAssign + std::ops::Div<f64>,
-        <D::Output as std::ops::Div<f64>>::Output: Copy,
+        D::Output: Mean,
     {
-        self.aggregate_over_dim::<Idx, _, <D::Output as std::ops::Div<f64>>::Output>(|iter| {
-            let n = iter.len();
-            if n == 0 {
-                panic!("mean_over_dim: cannot compute mean of zero elements");
-            } else {
-                let mut sum = D::Output::zero();
-                for v in iter.copied() {
-                    sum += v;
-                }
-                sum / n as f64
-            }
+        self.aggregate_over_dim::<Idx, _, D::Output>(|iter| {
+            D::Output::mean_from_iter(iter)
+                .expect("mean_over_dim: cannot compute mean of zero elements")
         })
     }
 }
@@ -246,9 +236,9 @@ mod tests {
         // Result should be a 1D DataFrame with 3 values: [25, 35, 45]
         // (average of each column)
         assert_eq!(mean_rows.data.len(), 3);
-        assert!((mean_rows.data[0] - 25.0).abs() < 1e-10);
-        assert!((mean_rows.data[1] - 35.0).abs() < 1e-10);
-        assert!((mean_rows.data[2] - 45.0).abs() < 1e-10);
+        assert!((mean_rows.data[0] - 25.0f64).abs() < 1e-10f64);
+        assert!((mean_rows.data[1] - 35.0f64).abs() < 1e-10f64);
+        assert!((mean_rows.data[2] - 45.0f64).abs() < 1e-10f64);
 
         // Calculate mean over second dimension (columns)
         let mean_cols = df.mean_over_dim::<There<Here>>();
@@ -256,8 +246,8 @@ mod tests {
         // Result should be a 1D DataFrame with 2 values: [20, 50]
         // (average of each row)
         assert_eq!(mean_cols.data.len(), 2);
-        assert!((mean_cols.data[0] - 20.0).abs() < 1e-10);
-        assert!((mean_cols.data[1] - 50.0).abs() < 1e-10);
+        assert!((mean_cols.data[0] - 20.0f64).abs() < 1e-10f64);
+        assert!((mean_cols.data[1] - 50.0f64).abs() < 1e-10f64);
     }
 
     // Test aggregate_over_dim with a custom aggregation function
