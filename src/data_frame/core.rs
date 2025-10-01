@@ -59,15 +59,9 @@ where
     D: FrameData,
 {
     /// The index structure (categorical, numeric, compound, etc.).
-    #[cfg(test)]
     pub index: I,
-    #[cfg(not(test))]
-    index: I,
     /// The data collection, indexable by flat index.
-    #[cfg(test)]
     pub data: D,
-    #[cfg(not(test))]
-    data: D,
 }
 
 #[cfg(test)]

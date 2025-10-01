@@ -38,97 +38,18 @@ pub trait IndexHlist: HList + Sync + Clone {
     where
         Self: 'a;
 
-    type Refs<'a>: RefIndexHList
-    where
-        Self: 'a;
-
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone;
-
-    fn refs(&self) -> Self::Refs<'_>;
 
     fn size(&self) -> usize;
 
     fn unflatten_index_value(&self, index: usize) -> Self::Value<'_>;
 }
 
-pub trait RefIndexHList: HList + Copy {
-    type Value: Copy + HList;
-
-    fn size(self) -> usize;
-
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone;
-}
-
-impl RefIndexHList for HNil {
-    type Value = HNil;
-
-    fn size(self) -> usize {
-        1
-    }
-
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-        std::iter::once(HNil)
-    }
-}
-
-impl<'a, Head: VariableRange, Tail: RefIndexHList> RefIndexHList for HCons<&'a Head, Tail> {
-    type Value = HCons<Head::Value<'a>, <Tail as RefIndexHList>::Value>;
-
-    fn size(self) -> usize {
-        self.head.size() * self.tail.size()
-    }
-
-    fn iter(self) -> impl Iterator<Item = Self::Value> + Clone {
-        self.head
-            .iter()
-            .flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
-    }
-}
-
-impl<Head: VariableRange, Tail: IndexHlist> IndexHlist for HCons<Head, Tail> {
-    type Value<'a>
-        = HCons<<Head as VariableRange>::Value<'a>, <Tail as IndexHlist>::Value<'a>>
-    where
-        Self: 'a;
-
-    type Refs<'a>
-        = HCons<&'a Head, <Tail as IndexHlist>::Refs<'a>>
-    where
-        Self: 'a;
-
-    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
-        let head_iter = self.head.iter();
-
-        head_iter.flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
-    }
-
-    fn refs(&self) -> Self::Refs<'_> {
-        h_cons(&self.head, self.tail.refs())
-    }
-
-    fn size(&self) -> usize {
-        self.head.size() * self.tail.size()
-    }
-
-    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
-        let head = self.head.unflatten_index_value(index / self.tail.size());
-        let tail_index = index % self.tail.size();
-        h_cons(head, self.tail.unflatten_index_value(tail_index))
-    }
-}
 impl IndexHlist for HNil {
     type Value<'a> = HNil;
-    type Refs<'a>
-        = HNil
-    where
-        Self: 'a;
 
     fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
         std::iter::once(HNil)
-    }
-
-    fn refs(&self) -> Self::Refs<'_> {
-        HNil
     }
 
     fn size(&self) -> usize {
@@ -140,32 +61,32 @@ impl IndexHlist for HNil {
     }
 }
 
-pub trait HListExt: HList {}
-
-pub type HLConcat<A, B> = <A as HListConcat<B>>::Concat;
-
-pub trait HListConcat<Other: HList>: HList {
-    type Concat: HList;
-
-    fn concat(self, other: Other) -> Self::Concat;
-}
-
-impl<Other: HList> HListConcat<Other> for HNil {
-    type Concat = Other;
-
-    fn concat(self, other: Other) -> Self::Concat {
-        other
-    }
-}
-
-impl<Head, Tail, Other: HList> HListConcat<Other> for HCons<Head, Tail>
+impl<Head, Tail> IndexHlist for HCons<Head, Tail>
 where
-    Tail: HListConcat<Other>,
+    Tail: IndexHlist,
+    Head: VariableRange,
 {
-    type Concat = HCons<Head, Tail::Concat>;
+    type Value<'a>
+        = HCons<Head::Value<'a>, Tail::Value<'a>>
+    where
+        Head: 'a,
+        Tail: 'a;
 
-    fn concat(self, other: Other) -> Self::Concat {
-        h_cons(self.head, self.tail.concat(other))
+    fn iter(&self) -> impl Iterator<Item = Self::Value<'_>> + Clone {
+        self.head
+            .iter()
+            .flat_map(move |head| self.tail.iter().map(move |tail| h_cons(head, tail)))
+    }
+
+    fn size(&self) -> usize {
+        self.head.size() * self.tail.size()
+    }
+
+    fn unflatten_index_value(&self, index: usize) -> Self::Value<'_> {
+        h_cons(
+            self.head.unflatten_index_value(index / self.tail.size()),
+            self.tail.unflatten_index_value(index % self.tail.size()),
+        )
     }
 }
 

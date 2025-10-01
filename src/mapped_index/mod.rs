@@ -30,9 +30,9 @@ pub trait VariableRange: Sync + Clone {
     fn size(&self) -> usize;
 }
 
-impl<T: VariableRange + ?Sized> VariableRange for &T {
+impl<'b, T: VariableRange + ?Sized> VariableRange for &'b T {
     type Value<'a>
-        = T::Value<'a>
+        = T::Value<'b>
     where
         Self: 'a;
 

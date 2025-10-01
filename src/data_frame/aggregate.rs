@@ -4,51 +4,114 @@ use super::core::DataFrame;
 use crate::data_frame::core::FrameData;
 use crate::data_frame::strided_index_view::StridedIndexView;
 use crate::mapped_index::VariableRange;
-use crate::mapped_index::compound_index::{
-    CompoundIndex, HLConcat, HListConcat, IndexHlist, RefIndexHList,
+use crate::mapped_index::compound_index::{CompoundIndex, IndexHlist};
+use crate::mapped_index::util::as_refs::{AsRefs, HRefs};
+use crate::mapped_index::util::concat::{HLConcat, HListConcat};
+use crate::mapped_index::util::pluck_split::{
+    PluckAt, PluckLeft, PluckRemainder, PluckRight, PluckSplit, PluckSplitImpl,
 };
-use crate::mapped_index::util::pluck_split::PluckSplitImpl;
-use itertools::Itertools;
+use itertools::{Itertools, iproduct};
 use num_traits::Zero;
+use std::marker::PhantomData;
+use std::ops::Index;
 
-impl<Indices: IndexHlist, D: FrameData> DataFrame<CompoundIndex<Indices>, D>
+pub struct IterOverDim<'a, Data, Plucked, Left, Right, Remainder>
+where
+    Data: FrameData,
+    Plucked: VariableRange + 'a,
+    Left: IndexHlist,
+    Right: IndexHlist,
+    Remainder: IndexHlist,
+{
+    at_index: usize,
+    data: &'a Data,
+    plucked_index: &'a Plucked,
+    left_index: Left,
+    right_index: Right,
+    remainder_index: Remainder,
+}
+
+impl<'a, Data, Plucked, Left, Right, Remainder> Iterator
+    for IterOverDim<'a, Data, Plucked, Left, Right, Remainder>
+where
+    Data: FrameData,
+    Plucked: VariableRange + 'a,
+    Left: IndexHlist,
+    Right: IndexHlist,
+    Remainder: IndexHlist,
+    Data::Output: Clone,
+{
+    type Item = (
+        <Plucked as VariableRange>::Value<'a>,
+        DataFrame<CompoundIndex<Remainder>, Vec<Data::Output>>,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let m_i = self.at_index;
+        self.at_index += 1;
+
+        let l_size = self.left_index.size();
+        let m_size = self.plucked_index.size();
+        let r_size = self.right_index.size();
+        if m_i >= m_size {
+            return None;
+        }
+
+        let data = iproduct!(0..l_size, 0..r_size)
+            .map(|(l_i, r_i)| {
+                let flat_index = l_i * (m_size * r_size) + m_i * r_size + r_i;
+                self.data[flat_index].clone()
+            })
+            .collect_vec();
+
+        let mv = self.plucked_index.unflatten_index_value(m_i);
+        let index = CompoundIndex::new(self.remainder_index.clone());
+
+        Some((mv, DataFrame::new(index, data)))
+    }
+}
+
+impl<Indices, D> DataFrame<CompoundIndex<Indices>, D>
 where
     D::Output: Clone,
+    Indices: IndexHlist + AsRefs,
+    D: FrameData,
 {
     /// Iterate over the dimension specified by typenum.
     ///
     /// Returns an iterator that yields StridedIndexViews for each combination of indices
     /// except the dimension being iterated over.
-    pub fn iter_over_dim<'a, Idx, Middle: VariableRange + 'a>(
+    pub fn iter_over_dim<'a, DimIx: 'a>(
         &'a self,
-    ) -> DataFrame<&'a Middle, Vec<Vec<&'a D::Output>>>
+    ) -> IterOverDim<
+        'a,
+        D,
+        PluckAt<DimIx, Indices>,
+        PluckLeft<DimIx, HRefs<'a, Indices>>,
+        PluckRight<DimIx, HRefs<'a, Indices>>,
+        PluckRemainder<DimIx, HRefs<'a, Indices>>,
+    >
     where
-        Indices::Refs<'a>: PluckSplitImpl<Idx, Extract = &'a Middle>,
-        <Indices::Refs<'a> as PluckSplitImpl<Idx>>::Left: RefIndexHList,
-        <Indices::Refs<'a> as PluckSplitImpl<Idx>>::Right: RefIndexHList,
+        Indices: IndexHlist + AsRefs + PluckSplitImpl<DimIx>,
+        D: FrameData,
+        <D as Index<usize>>::Output: Sized + Clone,
+        HRefs<'a, Indices>: PluckSplitImpl<DimIx, Extract = &'a PluckAt<DimIx, Indices>>,
+        PluckLeft<DimIx, HRefs<'a, Indices>>: HListConcat<PluckRight<DimIx, HRefs<'a, Indices>>>,
+        PluckAt<DimIx, Indices>: VariableRange + 'a,
+        PluckLeft<DimIx, HRefs<'a, Indices>>: IndexHlist + Copy,
+        PluckRight<DimIx, HRefs<'a, Indices>>: IndexHlist + Copy,
+        PluckRemainder<DimIx, HRefs<'a, Indices>>: IndexHlist,
     {
-        let (l, m, r) = self.index().indices.refs().pluck_split_impl();
+        let (left, middle, right) = self.index().indices.as_refs().pluck_split();
 
-        let m_size = m.size();
-        let r_size = r.size();
-
-        let data = m
-            .iter()
-            .enumerate()
-            .map(|(m_i, m_v)| {
-                l.iter()
-                    .enumerate()
-                    .flat_map(|(l_i, l_v)| {
-                        r.iter().enumerate().map(move |(r_i, r_v)| {
-                            let flat_index = l_i * (m_size * r_size) + m_i * r_size + r_i;
-                            &self.data()[flat_index]
-                        })
-                    })
-                    .collect_vec() // TODO: can we do without copying? Some kinda fancy index translation store?
-            })
-            .collect_vec();
-
-        DataFrame::new(m, data)
+        IterOverDim {
+            at_index: 0,
+            plucked_index: middle,
+            left_index: left,
+            right_index: right,
+            data: &self.data,
+            remainder_index: left.concat(right),
+        }
     }
 
     /// Aggregate over the dimension specified by typenum.
@@ -93,7 +156,7 @@ where
                     ))
                 })
             })
-            .collect_vec();
+            .collect_vec(); // TODO: avoid copying data; make a FrameData that translates indices instead.
         DataFrame::new(CompoundIndex::new(l.concat(r)), agg_data)
     }
 
@@ -319,47 +382,55 @@ mod tests {
         let df = DataFrame::new(compound_index, data);
 
         // Iterate over first dimension (rows)
-        let iter_rows = df.iter_over_dim::<Here, NumericRangeIndex<i32>>();
+        let mut iter_rows = df.iter_over_dim::<Here>();
 
         // Result should be a DataFrame with index [0, 1] and data containing references
         // to the original data elements for each row
-        assert_eq!(iter_rows.index.size(), 2);
-        assert_eq!(iter_rows.data.len(), 2);
+        for (i, (ix, row_df)) in iter_rows.enumerate() {
+            assert_eq!(ix as i32, i as i32);
+            assert_eq!(row_df.data().len(), 3);
 
-        // First row should contain [10, 20, 30]
-        assert_eq!(iter_rows.data[0].len(), 3);
-        assert_eq!(*iter_rows.data[0][0], 10);
-        assert_eq!(*iter_rows.data[0][1], 20);
-        assert_eq!(*iter_rows.data[0][2], 30);
-
-        // Second row should contain [40, 50, 60]
-        assert_eq!(iter_rows.data[1].len(), 3);
-        assert_eq!(*iter_rows.data[1][0], 40);
-        assert_eq!(*iter_rows.data[1][1], 50);
-        assert_eq!(*iter_rows.data[1][2], 60);
+            if i == 0 {
+                // First row should contain [10, 20, 30]
+                assert_eq!(row_df.data()[0], 10);
+                assert_eq!(row_df.data()[1], 20);
+                assert_eq!(row_df.data()[2], 30);
+            } else {
+                // Second row should contain [40, 50, 60]
+                assert_eq!(row_df.data()[0], 40);
+                assert_eq!(row_df.data()[1], 50);
+                assert_eq!(row_df.data()[2], 60);
+            }
+        }
 
         // Iterate over second dimension (columns)
-        let iter_cols = df.iter_over_dim::<There<Here>, NumericRangeIndex<i32>>();
+        let mut iter_cols = df.iter_over_dim::<There<Here>>();
 
         // Result should be a DataFrame with index [10, 11, 12] and data containing references
         // to the original data elements for each column
-        assert_eq!(iter_cols.index.size(), 3);
-        assert_eq!(iter_cols.data.len(), 3);
+        for (i, (ix, col_df)) in iter_cols.enumerate() {
+            assert_eq!(ix as i32, i as i32 + 10);
+            assert_eq!(col_df.data().len(), 2);
 
-        // First column should contain [10, 40]
-        assert_eq!(iter_cols.data[0].len(), 2);
-        assert_eq!(*iter_cols.data[0][0], 10);
-        assert_eq!(*iter_cols.data[0][1], 40);
-
-        // Second column should contain [20, 50]
-        assert_eq!(iter_cols.data[1].len(), 2);
-        assert_eq!(*iter_cols.data[1][0], 20);
-        assert_eq!(*iter_cols.data[1][1], 50);
-
-        // Third column should contain [30, 60]
-        assert_eq!(iter_cols.data[2].len(), 2);
-        assert_eq!(*iter_cols.data[2][0], 30);
-        assert_eq!(*iter_cols.data[2][1], 60);
+            match i {
+                0 => {
+                    // First column should contain [10, 40]
+                    assert_eq!(col_df.data()[0], 10);
+                    assert_eq!(col_df.data()[1], 40);
+                }
+                1 => {
+                    // Second column should contain [20, 50]
+                    assert_eq!(col_df.data()[0], 20);
+                    assert_eq!(col_df.data()[1], 50);
+                }
+                2 => {
+                    // Third column should contain [30, 60]
+                    assert_eq!(col_df.data()[0], 30);
+                    assert_eq!(col_df.data()[1], 60);
+                }
+                _ => panic!("Unexpected column index"),
+            }
+        }
     }
 
     // Test iter_over_dim with a more complex 4D array
@@ -387,69 +458,59 @@ mod tests {
         let df = DataFrame::new(compound_index, data);
 
         // Iterate over first dimension (dim0)
-        let iter_dim0 = df.iter_over_dim::<Here, NumericRangeIndex<i32>>();
+        let iter_dim0 = df.iter_over_dim::<Here>();
 
         // Result should be a DataFrame with index [0, 1, 2] and data containing references
         // to the original data elements for each slice of dim0
-        assert_eq!(iter_dim0.index.size(), 3);
-        assert_eq!(iter_dim0.data.len(), 3);
+        let mut count = 0;
+        for (index_value, slice_df) in iter_dim0 {
+            assert_eq!(index_value, count);
+            assert_eq!(slice_df.data().len(), 40); // 4*2*5 = 40 elements per slice
 
-        // Each slice should have 4*2*5 = 40 elements
-        assert_eq!(iter_dim0.data[0].len(), 40);
-        assert_eq!(iter_dim0.data[1].len(), 40);
-        assert_eq!(iter_dim0.data[2].len(), 40);
-
-        // Check some specific values in the first slice
-        assert_eq!(*iter_dim0.data[0][0], 1); // First element of first slice
-        assert_eq!(*iter_dim0.data[0][39], 40); // Last element of first slice
-
-        // Check some specific values in the second slice
-        assert_eq!(*iter_dim0.data[1][0], 41); // First element of second slice
-        assert_eq!(*iter_dim0.data[1][39], 80); // Last element of second slice
-
-        // Check some specific values in the third slice
-        assert_eq!(*iter_dim0.data[2][0], 81); // First element of third slice
-        assert_eq!(*iter_dim0.data[2][39], 120); // Last element of third slice
+            // Check first and last element of each slice
+            assert_eq!(slice_df.data()[0], count * 40 + 1); // First element
+            assert_eq!(slice_df.data()[39], (count + 1) * 40); // Last element
+            count += 1;
+        }
+        assert_eq!(count, 3);
 
         // Iterate over second dimension (dim1)
-        let iter_dim1 = df.iter_over_dim::<There<Here>, NumericRangeIndex<i32>>();
+        let iter_dim1 = df.iter_over_dim::<There<Here>>();
 
         // Result should be a DataFrame with index [10, 11, 12, 13] and data containing references
         // to the original data elements for each slice of dim1
-        assert_eq!(iter_dim1.index.size(), 4);
-        assert_eq!(iter_dim1.data.len(), 4);
-
-        // Each slice should have 3*2*5 = 30 elements
-        assert_eq!(iter_dim1.data[0].len(), 30);
-        assert_eq!(iter_dim1.data[1].len(), 30);
-        assert_eq!(iter_dim1.data[2].len(), 30);
-        assert_eq!(iter_dim1.data[3].len(), 30);
+        let mut count = 0;
+        for (index_value, slice_df) in iter_dim1 {
+            assert_eq!(index_value, count + 10);
+            assert_eq!(slice_df.data().len(), 30); // 3*2*5 = 30 elements per slice
+            count += 1;
+        }
+        assert_eq!(count, 4);
 
         // Iterate over third dimension (dim2)
-        let iter_dim2 = df.iter_over_dim::<There<There<Here>>, NumericRangeIndex<i32>>();
+        let iter_dim2 = df.iter_over_dim::<There<There<Here>>>();
 
         // Result should be a DataFrame with index [20, 21] and data containing references
         // to the original data elements for each slice of dim2
-        assert_eq!(iter_dim2.index.size(), 2);
-        assert_eq!(iter_dim2.data.len(), 2);
-
-        // Each slice should have 3*4*5 = 60 elements
-        assert_eq!(iter_dim2.data[0].len(), 60);
-        assert_eq!(iter_dim2.data[1].len(), 60);
+        let mut count = 0;
+        for (index_value, slice_df) in iter_dim2 {
+            assert_eq!(index_value, count + 20);
+            assert_eq!(slice_df.data().len(), 60); // 3*4*5 = 60 elements per slice
+            count += 1;
+        }
+        assert_eq!(count, 2);
 
         // Iterate over fourth dimension (dim3)
-        let iter_dim3 = df.iter_over_dim::<There<There<There<Here>>>, NumericRangeIndex<i32>>();
+        let iter_dim3 = df.iter_over_dim::<There<There<There<Here>>>>();
 
         // Result should be a DataFrame with index [30, 31, 32, 33, 34] and data containing references
         // to the original data elements for each slice of dim3
-        assert_eq!(iter_dim3.index.size(), 5);
-        assert_eq!(iter_dim3.data.len(), 5);
-
-        // Each slice should have 3*4*2 = 24 elements
-        assert_eq!(iter_dim3.data[0].len(), 24);
-        assert_eq!(iter_dim3.data[1].len(), 24);
-        assert_eq!(iter_dim3.data[2].len(), 24);
-        assert_eq!(iter_dim3.data[3].len(), 24);
-        assert_eq!(iter_dim3.data[4].len(), 24);
+        let mut count = 0;
+        for (index_value, slice_df) in iter_dim3 {
+            assert_eq!(index_value, count + 30);
+            assert_eq!(slice_df.data().len(), 24); // 3*4*2 = 24 elements per slice
+            count += 1;
+        }
+        assert_eq!(count, 5);
     }
 }

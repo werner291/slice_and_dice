@@ -14,6 +14,7 @@
 //! assert_eq!(right, hlist!["hello", 3.14]);
 //! ```
 
+use crate::mapped_index::util::concat::HLConcat;
 use frunk::hlist::{HList, h_cons};
 use frunk::indices::{Here, There};
 use frunk::{HCons, HNil};
@@ -25,6 +26,11 @@ pub trait PluckSplit {
         Self::Left: HList,
         Self::Right: HList;
 }
+
+pub type PluckAt<At, List> = <List as PluckSplitImpl<At>>::Extract;
+pub type PluckLeft<At, List> = <List as PluckSplitImpl<At>>::Left;
+pub type PluckRight<At, List> = <List as PluckSplitImpl<At>>::Right;
+pub type PluckRemainder<At, List> = HLConcat<PluckLeft<At, List>, PluckRight<At, List>>;
 
 impl<T> PluckSplit for T {
     fn pluck_split<At>(
