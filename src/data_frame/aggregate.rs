@@ -75,6 +75,28 @@ where
     ///
     /// Returns an iterator that yields StridedIndexViews for each combination of indices
     /// except the dimension being iterated over.
+    ///
+    /// # Example
+    /// ```
+    /// use slice_and_dice::data_frame::core::{DataFrame, FrameData};
+    /// use slice_and_dice::mapped_index::numeric_range::NumericRangeIndex;
+    /// use frunk::hlist;
+    /// use itertools::Itertools;
+    /// use slice_and_dice::mapped_index::compound_index::{CompoundIndex, Dim0};
+    ///
+    /// // Create 2D DataFrame with dimensions 2x3
+    /// let index1 = NumericRangeIndex::<i32>::new(0, 2);  // [0, 1]
+    /// let index2 = NumericRangeIndex::<i32>::new(10, 13); // [10, 11, 12]
+    /// let indices = CompoundIndex::new(hlist![index1, index2]);
+    /// let df = DataFrame::new(indices, vec![1, 2, 3, 4, 5, 6]);
+    ///
+    /// // Iterate over first dimension (rows)
+    /// for (ix, row_df) in df.iter_over_dim::<Dim0>() {
+    ///     // ix will be 0, then 1
+    ///     // row_df will contain [1,2,3] for first row, [4,5,6] for second row
+    ///     println!("Row {}: {:?}", ix, row_df.data().iter().collect_vec());
+    /// }
+    /// ```
     pub fn iter_over_dim<'a, DimIx: 'a>(
         &'a self,
     ) -> IterOverDim<
