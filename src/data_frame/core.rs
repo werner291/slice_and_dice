@@ -265,7 +265,7 @@ where
 
 impl<I, D> DataFrame<CompoundIndex<HList![I]>, D>
 where
-    I: VariableRange + 'static,
+    I: VariableRange,
     D: FrameData,
 {
     pub fn collapse_single_index(self) -> DataFrame<I, D> {
