@@ -156,7 +156,7 @@ where
                     ))
                 })
             })
-            .collect_vec(); // TODO: avoid copying data; make a FrameData that translates indices instead.
+            .collect_vec();
         DataFrame::new(CompoundIndex::new(l.concat(r)), agg_data)
     }
 
