@@ -175,8 +175,8 @@ where
     /// Compute the mean over the dimension specified by typenum.
     ///
     /// Uses the Mean trait to compute the mean of each strided slice.
-    pub fn mean_over_dim<'a, Idx>(
-        &'a self,
+    pub fn mean_over_dim<Idx>(
+        &self,
     ) -> DataFrame<
         CompoundIndex<
             HLConcat<
@@ -206,10 +206,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mapped_index::compound_index::{Dim0, Dim1};
     use crate::mapped_index::numeric_range::NumericRangeIndex;
-    use frunk::HNil;
-    use frunk::hlist::h_cons;
+    use frunk::hlist::{HList, h_cons};
     use frunk::indices::{Here, There};
+    use frunk::{HList, HNil, hlist};
+
     // Test that mean_over_dim works correctly (which uses iter_over_dim internally)
     #[test]
     fn test_mean_over_dim() {
