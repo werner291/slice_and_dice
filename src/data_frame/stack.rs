@@ -32,7 +32,7 @@ pub enum ExtrapolationMethod {
 
 impl<I, D> DataFrame<I, D>
 where
-    I: VariableRange + Clone + PartialEq + 'static,
+    I: VariableRange + Clone + PartialEq,
     D: FrameData,
     D::Output: Clone,
 {
