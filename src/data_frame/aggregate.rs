@@ -3,6 +3,7 @@
 use super::core::DataFrame;
 use crate::data_frame::core::FrameData;
 use crate::data_frame::strided_index_view::StridedIndexView;
+use crate::data_frame::util::tri_product_index_view::TriProductIndexView;
 use crate::mapped_index::VariableRange;
 use crate::mapped_index::compound_index::{CompoundIndex, IndexHlist};
 use crate::mapped_index::util::as_refs::{AsRefs, HRefs};
@@ -39,11 +40,10 @@ where
     Left: IndexHlist,
     Right: IndexHlist,
     Remainder: IndexHlist,
-    Data::Output: Clone,
 {
     type Item = (
         <Plucked as VariableRange>::Value<'a>,
-        DataFrame<CompoundIndex<Remainder>, Vec<Data::Output>>,
+        DataFrame<CompoundIndex<Remainder>, TriProductIndexView<'a, Data>>,
     );
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -57,23 +57,17 @@ where
             return None;
         }
 
-        let data = iproduct!(0..l_size, 0..r_size)
-            .map(|(l_i, r_i)| {
-                let flat_index = l_i * (m_size * r_size) + m_i * r_size + r_i;
-                self.data[flat_index].clone()
-            })
-            .collect_vec();
+        let view = TriProductIndexView::new(l_size, m_size, r_size, m_i, self.data);
 
         let mv = self.plucked_index.unflatten_index_value(m_i);
         let index = CompoundIndex::new(self.remainder_index.clone());
 
-        Some((mv, DataFrame::new(index, data)))
+        Some((mv, DataFrame::new(index, view)))
     }
 }
 
 impl<Indices, D> DataFrame<CompoundIndex<Indices>, D>
 where
-    D::Output: Clone,
     Indices: IndexHlist + AsRefs,
     D: FrameData,
 {
@@ -94,7 +88,6 @@ where
     where
         Indices: IndexHlist + AsRefs + PluckSplitImpl<DimIx>,
         D: FrameData,
-        <D as Index<usize>>::Output: Sized + Clone,
         HRefs<'a, Indices>: PluckSplitImpl<DimIx, Extract = &'a PluckAt<DimIx, Indices>>,
         PluckLeft<DimIx, HRefs<'a, Indices>>: HListConcat<PluckRight<DimIx, HRefs<'a, Indices>>>,
         PluckAt<DimIx, Indices>: VariableRange + 'a,

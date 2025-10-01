@@ -3,3 +3,4 @@ pub mod aggregate;
 pub mod core;
 pub mod stack;
 pub mod strided_index_view;
+pub mod util;
