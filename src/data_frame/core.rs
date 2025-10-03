@@ -226,6 +226,29 @@ where
         DataFrame::new(self.index().clone(), data)
     }
 
+    /// Map each element of the DataFrame's data to a new value, keeping the same index.
+    ///
+    /// # Examples
+    /// ```
+    /// use slice_and_dice::{DataFrame, NumericRangeIndex};
+    /// let idx = NumericRangeIndex::<i32>::new(0, 3);
+    /// let df = DataFrame::new(idx, vec![1, 2, 3]);
+    /// let df2 = df.map_with_key(|i, v| (i, v * 10));
+    /// assert_eq!(df2.data(), &vec![(0, 10), (1, 20), (2, 30)]);
+    /// ```
+    pub fn map_with_key<U, F>(&self, mut f: F) -> DataFrame<I, Vec<U>>
+    where
+        F: FnMut(I::Value<'_>, &T) -> U,
+    {
+        let data = self
+            .index()
+            .iter()
+            .zip(self.data().iter())
+            .map(|(i, v)| f(i, v))
+            .collect();
+        DataFrame::new(self.index().clone(), data)
+    }
+
     /// Build a DataFrame by mapping each index value to a data value.
     ///
     /// # Examples
